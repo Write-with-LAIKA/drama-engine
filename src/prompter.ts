@@ -8,7 +8,19 @@ import { getRandomElement } from "./utils/array-utils";
 import { ChatMessage } from "./chat";
 import { unixTimestampToDate } from "./utils/time-utils";
 
+/**
+ * A simple wrapper to make it possible to append text if and only if the text is not undefined. Separator between old 
+ * and new text can be set. Always appends at the end.
+ *
+ * @class Prompt
+ */
 class Prompt {
+	/**
+	 * The current prompt
+	 *
+	 * @type {string}
+	 * @memberof Prompt
+	 */
 	prompt: string;
 	constructor(basePrompt: string) { this.prompt = basePrompt; return this; };
 
@@ -18,25 +30,74 @@ class Prompt {
 	}
 }
 
+/**
+ * Assemble the prompt.
+ *
+ * @export
+ * @class Prompter
+ */
 export class Prompter {
+	/**
+	 * The (jinja) prompt template to use
+	 *
+	 * @private
+	 * @type {Template}
+	 * @memberof Prompter
+	 */
 	private template: Template;
+	/**
+	 * A template for the template
+	 *
+	 * @private
+	 * @type {PromptTemplate}
+	 * @memberof Prompter
+	 */
 	private config: PromptTemplate;
 
+	/**
+	 * Creates an instance of Prompter.
+	 * @param {PromptTemplate} config
+	 * @memberof Prompter
+	 */
 	constructor(config: PromptTemplate) {
 		this.template = new Template(config.chat_template);
 		this.config = config;
 	}
 
+	/**
+	 * Decorate the prompt using data.
+	 *
+	 * @private
+	 * @param {ContextDataTypes} type
+	 * @param {string} [text]
+	 * @param {ContextDecorator[]} [decorators]
+	 * @memberof Prompter
+	 */
 	private decorate = (type: ContextDataTypes, text?: string, decorators?: ContextDecorator[]) => {
 		if (!text || !decorators) return undefined;
 		const decorator = decorators.find(d => d.type == type);
 		return decorator && decorator.replacement.replace("{{DATA}}", text);
 	}
 
+	/**
+	 * Clean the string
+	 *
+	 * @private
+	 * @param {string} text
+	 * @memberof Prompter
+	 */
 	private sanitize = (text: string) => {
 		return text.replace(/<.*>/gi, "").trim();
 	}
 
+	/**
+	 * Use jinja to render the prompt using the current configuration and template.
+	 *
+	 * @param {string} speaker
+	 * @param {{ role: string, content: string }[]} chat
+	 * @param {Template} [template=this.template]
+	 * @memberof Prompter
+	 */
 	renderPrompt = (speaker: string, chat: { role: string, content: string }[], template: Template = this.template) => {
 		const result = template.render({
 			messages: chat,
@@ -52,6 +113,18 @@ export class Prompter {
 		return result;
 	}
 
+	/**
+	 * Assemble the prompt for one inference using the supplied data and world state.
+	 *
+	 * @param {Companion} companion
+	 * @param {KeyValueRecord[]} worldState
+	 * @param {Context} context
+	 * @param {ChatMessage[]} [history]
+	 * @param {ContextDecorator[]} [decorators=[]]
+	 * @param {PromptConfig} [config=defaultPromptConfig]
+	 * @param {PromptTemplate} [promptTemplate]
+	 * @return {*} 
+	 */
 	assemblePrompt = (companion: Companion,
 		worldState: KeyValueRecord[],
 		context: Context,

@@ -4,6 +4,12 @@ import { Job } from "./job";
 import { KyInstance, Options } from "ky";
 import { PromptConfig, PromptTemplate } from "./prompt-config";
 
+/**
+ * The response from the backend/model including the number of tokens in and out.
+ *
+ * @export
+ * @interface JobResponse
+ */
 export interface JobResponse {
 	id: string;
 	response: string | undefined;
@@ -26,6 +32,13 @@ interface RequestPayload extends GenerationParams {
 	interaction_id?: string
 }
 
+/**
+ * Custom error class to wrap the job response
+ *
+ * @export
+ * @class ModelError
+ * @extends {Error}
+ */
 export class ModelError extends Error {
 	reason: string;
 	job: Job;
@@ -44,16 +57,45 @@ export class ModelError extends Error {
 	}
 }
 
+/**
+ * A model is an abstraction of a language model.
+ *
+ * @export
+ * @class Model
+ */
 export class Model {
 	private modelConfig: ModelConfig = defaultModelConfig;
 	private path: string;
 
+	/**
+	 * All tokens sent to the model
+	 *
+	 * @type {number}
+	 * @memberof Model
+	 */
 	inputTokens: number = 0;
+	/**
+	 * All tokens received from the model
+	 *
+	 * @type {number}
+	 * @memberof Model
+	 */
 	outputTokens: number = 0;
+	/**
+	 * Accumulated runtime
+	 *
+	 * @type {number}
+	 * @memberof Model
+	 */
 	runtime: number = 0.0;
 	promptTemplate: PromptTemplate = this.modelConfig.extra.template;
 	promptConfig: PromptConfig = this.modelConfig.extra.promptConfig;
 
+	/**
+	 * Creates an instance of Model.
+	 * @param {string} [path='/api/user/writersroom/generate']
+	 * @memberof Model
+	 */
 	constructor(path = '/api/user/writersroom/generate') {
 		this.path = path;
 		return this;
@@ -88,6 +130,10 @@ export class Model {
 	 *
 	 * Waits for the streaming response to end and builds a response object that is the same
 	 * as the response object when not streaming i.e., json response.
+	 *
+	 * @private
+	 * @param {Response} response
+	 * @memberof Model
 	 */
 	private buildResponseFromStream = async (response: Response) => {
 		const reader = response.body?.getReader();
@@ -166,6 +212,14 @@ export class Model {
 	};
 
 
+	/**
+	 * Call this function to run a job. Returns a job response and updates the local db.
+	 *
+	 * @param {Job} job
+	 * @param {KyInstance} instance
+	 * @param {Options} [additionalOptions]
+	 * @memberof Model
+	 */
 	runJob = async (job: Job, instance: KyInstance, additionalOptions?: Options): Promise<JobResponse | undefined> => {
 		let jobResponse: JobResponse | undefined = undefined;
 
