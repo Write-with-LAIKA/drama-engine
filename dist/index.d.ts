@@ -1,5 +1,5 @@
-import { Template } from '@huggingface/jinja';
 import { KyInstance, Options } from 'ky';
+import { Template } from '@huggingface/jinja';
 
 type CompanionReply = [boolean, Context | undefined];
 type ReplyTriggerTypes = undefined | number | AutoCompanion | string | ((context: Context, sender?: AutoCompanion) => boolean);
@@ -560,6 +560,20 @@ interface JobResponse {
     output_tokens: number | undefined;
 }
 /**
+ * Custom error class to wrap the job response
+ *
+ * @export
+ * @class ModelError
+ * @extends {Error}
+ */
+declare class ModelError extends Error {
+    reason: string;
+    job: Job;
+    jobResponse?: JobResponse;
+    error?: Error;
+    constructor(msg: string, reason: string, job: Job, jobResponse?: JobResponse, error?: Error);
+}
+/**
  * A model is an abstraction of a language model.
  *
  * @export
@@ -737,4 +751,18 @@ declare class Drama {
     runTriggers: (context: Context, callback?: (chat: Chat, message?: ChatMessage) => void) => Promise<Context>;
 }
 
-export { Drama };
+/**
+ * This class is for our AI chat companions
+ * - Adds an automatic reply function that triggers and inference
+ */
+declare class ChatCompanion extends AutoCompanion {
+    constructor(configuration: CompanionConfig, drama: Drama);
+}
+
+declare class InstructionDeputy extends Deputy {
+    static readonly config: CompanionConfig;
+    constructor(configuration: CompanionConfig | undefined, drama: Drama);
+    protected runAction: (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion) => Promise<CompanionReply>;
+}
+
+export { AutoCompanion, Chat, ChatCompanion, type ChatMessage, type ChatSpeakerSelection, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, Deputy, Drama, InstructionDeputy, type Job, type JobStatus, Model, type ModelConfig, ModelError };

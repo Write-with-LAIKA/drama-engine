@@ -2,9 +2,9 @@
   "name": "@write-with-laika/drama-engine",
   "version": "1.1.0",
   "description": "A library for agent orchestration",
-  "main": "./dist/drama.ts",
-  "module": "./dist/drama.mjs",
-  "types": "./dist/drama.d.ts",
+  "main": "./dist/index.ts",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
