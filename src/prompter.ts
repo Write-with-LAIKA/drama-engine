@@ -57,7 +57,8 @@ export class Prompter {
 		context: Context,
 		history?: ChatMessage[],
 		decorators: ContextDecorator[] = [],	// eventual additional decorators
-		config: PromptConfig = defaultPromptConfig) => {
+		config: PromptConfig = defaultPromptConfig,
+		promptTemplate?: PromptTemplate) => {
 
 		let tags: string[] = [];
 		companion.configuration.knowledge && companion.configuration.knowledge
@@ -113,7 +114,7 @@ export class Prompter {
 			;
 
 
-		
+
 		// only add history if there is one and if we don't have answerData
 		const chat: { role: string, content: string }[] = [];
 		let cutoff = 0;
@@ -135,18 +136,18 @@ export class Prompter {
 			let budget = config.max_prompt_length - system_prompt.prompt.length - 255; // keep a little bit of buffer for tokens
 			chat.reverse()
 				.every((entry, index) => {
-				budget -= entry.content.length + entry.role.length + 6; // colon, space, 2x newline, start and end token
-				if (budget < 0) {
-					cutoff = index;
-					return false; // early exit
-				}
-				return true;
-			})
+					budget -= entry.content.length + entry.role.length + 6; // colon, space, 2x newline, start and end token
+					if (budget < 0) {
+						cutoff = index;
+						return false; // early exit
+					}
+					return true;
+				})
 		}
 
 		const start = 0
 		const end = cutoff !== 0 ? cutoff : history?.length
-		const cleaned_chat = [{ role: "system", content: this.sanitize(system_prompt.prompt) }, ...chat.slice(start, end).reverse()];
+		const cleaned_chat = [{ role: config.system_role_allowed ? "system" : "user", content: this.sanitize(system_prompt.prompt) }, ...chat.slice(start, end).reverse()];
 
 		// append the job if configured as such
 		const job = context.job;
@@ -156,7 +157,12 @@ export class Prompter {
 
 		const name = "assistant"; //companion.configuration.kind == "shell" ? "assistant" : companion.id;
 
-		return this.renderPrompt(name, cleaned_chat);
+		let template = undefined;
+		if (promptTemplate) {
+			template = new Template(promptTemplate.chat_template);
+		}
+
+		return this.renderPrompt(name, cleaned_chat, template);
 
 	}
 

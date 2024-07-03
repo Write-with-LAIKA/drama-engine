@@ -9,6 +9,7 @@ export enum PromptStyles {
 export type PromptConfig = {
 	max_prompt_length: number,		// in characters!
 	job_in_chat: boolean,			// whether job goes into system prompt (false) or chat (true)
+	system_role_allowed: boolean,	// some templates do not support "system" role e.g., Mistral instruction format
 }
 
 export type PromptTemplate = {
@@ -23,6 +24,7 @@ export type PromptTemplate = {
 export const defaultPromptConfig: PromptConfig = {
 	max_prompt_length: 1024 * 3 * 4,
 	job_in_chat: false,
+	system_role_allowed: true,
 }
 
 export const defaultPromptTemplates = {

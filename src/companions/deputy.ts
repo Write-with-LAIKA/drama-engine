@@ -16,7 +16,7 @@ import { largeContextModelConfig } from "../model-config";
  * @typedef {Deputy}
  * @extends {AutoCompanion}
  */
-export abstract class Deputy extends AutoCompanion { 
+export abstract class Deputy extends AutoCompanion {
 
 	/**
 	 * Creates an instance of Deputy. Deputies can use a different prompter than companions in the chat.
@@ -31,7 +31,7 @@ export abstract class Deputy extends AutoCompanion {
 
 		switch (configuration.scope) {
 			case "screen":
-			case "some": this.registerReply("*", this.checkForSelection); 
+			case "some": this.registerReply("*", this.checkForSelection);
 			case "document": this.registerReply(this.wantsToSummarise, this.summariseDocumentInference, true); break;
 			case "random_paragraph": this.registerReply("*", this.pickRandomParagraph, true); break;
 			case "last_paragraph": this.registerReply("*", this.pickLastParagraph, true); break;
@@ -42,7 +42,7 @@ export abstract class Deputy extends AutoCompanion {
 		return this;
 	}
 
-	wantsToSummarise = (context: Context, sender?: AutoCompanion) => { 		
+	wantsToSummarise = (context: Context, sender?: AutoCompanion) => {
 		const document = context.query();
 		return document != undefined && document.trim().length >= 2000;
 	};
@@ -51,7 +51,7 @@ export abstract class Deputy extends AutoCompanion {
 
 	protected newDeputyJob = (prompt: string, context?: Context, situation?: string) => {
 		const newContext: Context = context || new Context(this, [], "", situation || "deputy", []);
-		
+
 		const job: Job = {
 			id: "internal",
 			remoteID: "",
@@ -75,7 +75,7 @@ export abstract class Deputy extends AutoCompanion {
 
 	protected pickRandomParagraph = async (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion): Promise<CompanionReply> => {
 		console.log("pickRandomParagraph", context)
-		
+
 		const document = context.query();
 		if (!document) return [false, undefined];
 
@@ -143,9 +143,9 @@ export abstract class Deputy extends AutoCompanion {
 				trimmedDocument.substring(0, findCut(trimmedDocument, 30000)) + "\n\n" +
 				trimmedDocument.substring(findCut(trimmedDocument, documentSize / 2 - 30000 / 2), findCut(trimmedDocument, documentSize / 2 + 30000 / 2)) + "\n\n" +
 				trimmedDocument.substring(findCut(trimmedDocument, documentSize - 30000));
-			
+
 			trimmedDocument = shorter;
-			
+
 			console.log("Gigantic document cut down from " + documentSize + " to " + trimmedDocument.length + " characters before summary.");
 		}
 
@@ -154,7 +154,7 @@ export abstract class Deputy extends AutoCompanion {
 				{ type: "job", data: "Read the following document and reply with a one page summary." },
 				{ type: "action", data: "SUMMARISE_DOCUMENT" },
 			]);
-		
+
 		// use our own prompter. make the context short because we only want to send the last part of the dialog
 		// const prompt = chat.drama.prompter.assemblePrompt(this, chat.drama.worldState, tempContext,
 		// 	[{
@@ -165,11 +165,17 @@ export abstract class Deputy extends AutoCompanion {
 		// 	undefined,
 		// 	{ max_prompt_length: 100000, job_in_chat: true });
 
+		let promptTemplate = undefined;
+		if (trimmedDocument.length > 30000) {
+			promptTemplate = largeContextModelConfig.extra.template;
+		}
+
 		const prompt = chat.drama.prompter.assemblePrompt(this, chat.drama.worldState, { ...tempContext, input: trimmedDocument },
 			undefined,
 			undefined,
-			{ max_prompt_length: 100000, job_in_chat: false });
-		
+			largeContextModelConfig.extra.promptConfig,
+			promptTemplate);
+
 		const job = this.newDeputyJob(prompt, tempContext);
 
 		// large model needed

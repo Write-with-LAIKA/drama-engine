@@ -6,7 +6,7 @@ import { Context, ContextDataTypes, ContextDecorator } from "./context";
 import { v4 as uuidv4 } from "uuid";
 import { Model } from "./model";
 import { Prompter } from "./prompter";
-import { PromptConfig, PromptTemplate, defaultPromptConfig, defaultPromptTemplates } from "./prompt-config";
+import { PromptConfig } from "./prompt-config";
 import { Chat, ChatMessage, ChatSpeakerSelection } from "./chat";
 import { AutoCompanion } from "./companions/auto-companion";
 import { evaluateCondition } from "./conditions";
@@ -29,10 +29,10 @@ export class Drama {
 		worldState: KeyValueRecord[],
 		kyInstance: KyInstance,
 		additionalOptions?: Options,
-		templates: PromptTemplate = defaultPromptTemplates.CHATML) {
-		this.prompter = new Prompter(templates);
+		) {
 		this.worldState = worldState;
 		this.model = new Model();
+		this.prompter = new Prompter(this.model.promptTemplate);
 		this.instance = kyInstance;
 		this.additionalOptions = additionalOptions;
 		this.companions = companionConfigs.map(c => new c.class(c, this));
@@ -215,7 +215,7 @@ export class Drama {
 
 	/* PROMPT */
 
-	getPrompt = (companion: Companion, history: ChatMessage[], context: Context, decorators: ContextDecorator[] = [], config: PromptConfig = defaultPromptConfig) => {
+	getPrompt = (companion: Companion, history: ChatMessage[], context: Context, decorators: ContextDecorator[] = [], config: PromptConfig = this.model.promptConfig) => {
 		return this.prompter.assemblePrompt(companion, this.worldState, context, history, decorators, config);
 	}
 

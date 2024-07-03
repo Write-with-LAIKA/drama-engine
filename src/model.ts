@@ -2,6 +2,7 @@ import { db } from "./database/database";
 import { ModelConfig, defaultModelConfig } from "./model-config";
 import { Job } from "./job";
 import { KyInstance, Options } from "ky";
+import { PromptConfig, PromptTemplate } from "./prompt-config";
 
 export interface JobResponse {
 	id: string;
@@ -15,7 +16,9 @@ export interface JobResponse {
 	// runtime: number | undefined;
 }
 
-interface requestPayload extends ModelConfig {
+type OptionalPropsType<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+type GenerationParams = OptionalPropsType<ModelConfig, 'extra'>;
+interface RequestPayload extends GenerationParams {
 	prompt: string,
 	preset?: string,
 	chat_id?: string,
@@ -48,6 +51,8 @@ export class Model {
 	inputTokens: number = 0;
 	outputTokens: number = 0;
 	runtime: number = 0.0;
+	promptTemplate: PromptTemplate = this.modelConfig.extra.template;
+	promptConfig: PromptConfig = this.modelConfig.extra.promptConfig;
 
 	constructor(path = '/api/user/writersroom/generate') {
 		this.path = path;
@@ -168,7 +173,7 @@ export class Model {
 
 		if (!job.prompt) throw new ModelError("Can not run inference", "No prompt found", job);
 
-		const postData: requestPayload = {
+		const postData: RequestPayload = {
 			prompt: job.prompt,
 			preset: presetAction,
 			chat_id: job.context.chatID,
@@ -176,6 +181,7 @@ export class Model {
 			interaction_id: job.context.interactionID,
 			...(job.modelConfig || this.modelConfig),	// job can override parameters
 		}
+		delete postData["extra"];
 
 		return instance.post(this.path, {
 			json: postData,
