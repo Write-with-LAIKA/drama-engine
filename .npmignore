@@ -1,0 +1,16 @@
+node_modules/
+.idea
+test
+src
+types
+tsconfig.json
+tslint.json
+.prettierrc
+png
+*.html
+css
+extra
+*.sh
+.gitignore
+doc
+examples

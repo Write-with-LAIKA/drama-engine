@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    // "target": "es6",
+    "target": "es2021", /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "checkJs": true, /* Enable error reporting in type-checked JavaScript files. */
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "declaration": true, /* Generate .d.ts files from TypeScript and JavaScript files in your project. */
+    "declarationMap": true, /* Create sourcemaps for d.ts files. */
+    "outDir": "./dist", /* Specify an output folder for all emitted files. */
+    // "module": "commonjs", /* Specify what module code is generated. */
+    "removeComments": true, /* Disable emitting comments. */
+    // "esModuleInterop": true, /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */
+    "forceConsistentCasingInFileNames": true, /* Ensure that casing is correct in imports. */
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "extra",
+    "examples"
+  ],
+}
