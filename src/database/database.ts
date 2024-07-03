@@ -1,5 +1,5 @@
 // database.config.ts
-import { Companion, CompanionConfig, CompanionState } from "@/drama-engine/companions/companion";
+import { Companion, CompanionConfig, CompanionState } from "../companions/companion";
 import Dexie from "dexie";
 import { populate } from "./populate";
 import { ChatMessage } from "../chat";

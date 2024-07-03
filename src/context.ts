@@ -1,4 +1,3 @@
-import { getWeekYearWithOptions } from "date-fns/fp";
 import { AutoCompanion } from "./companions/auto-companion";
 import { Companion, CompanionConfig } from "./companions/companion";
 import { JobResponse } from "./model";

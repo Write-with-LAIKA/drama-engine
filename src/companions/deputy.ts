@@ -1,4 +1,4 @@
-import { cleanText, findCut, getLastParagraph, getLastSentence, getRandomParagraph } from "@/lib/string-utils";
+import { cleanText, findCut, getLastParagraph, getLastSentence, getRandomParagraph } from "../utils/string-utils";
 import { Chat, ChatMessage } from "../chat";
 import { Context, ContextDataTypes } from "../context";
 import { Drama } from "../drama";
@@ -165,16 +165,11 @@ export abstract class Deputy extends AutoCompanion {
 		// 	undefined,
 		// 	{ max_prompt_length: 100000, job_in_chat: true });
 
-		let promptTemplate = undefined;
-		if (trimmedDocument.length > 30000) {
-			promptTemplate = largeContextModelConfig.extra.template;
-		}
-
 		const prompt = chat.drama.prompter.assemblePrompt(this, chat.drama.worldState, { ...tempContext, input: trimmedDocument },
 			undefined,
 			undefined,
 			largeContextModelConfig.extra.promptConfig,
-			promptTemplate);
+			(trimmedDocument.length > 30000) ? largeContextModelConfig.extra.template : undefined);
 
 		const job = this.newDeputyJob(prompt, tempContext);
 

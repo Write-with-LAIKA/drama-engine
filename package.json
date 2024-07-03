@@ -25,5 +25,15 @@
   "bugs": {
     "url": "https://github.com/Write-with-LAIKA/drama-engine/issues"
   },
-  "homepage": "https://github.com/Write-with-LAIKA/drama-engine#readme"
+  "homepage": "https://github.com/Write-with-LAIKA/drama-engine#readme",
+  "dependencies": {
+    "@huggingface/jinja": "^0.2.2",
+    "dexie": "^4.0.7",
+    "ky": "^1.4.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0"
+  },
+  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }

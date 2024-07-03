@@ -6,7 +6,7 @@ import { KeyValueRecord } from "./database/database";
 import { evaluateCondition } from "./conditions";
 import { getRandomElement } from "./utils/array-utils";
 import { ChatMessage } from "./chat";
-import { unixTimestampToDate } from "@/lib/time-utils";
+import { unixTimestampToDate } from "./utils/time-utils";
 
 class Prompt {
 	prompt: string;
