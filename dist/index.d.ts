@@ -1,3 +1,4 @@
+import Dexie from 'dexie';
 import { KyInstance, Options } from 'ky';
 import { Template } from '@huggingface/jinja';
 
@@ -295,6 +296,12 @@ type KeyValueRecord = {
     key: string;
     value: StateTypes;
 };
+type PromptRecord = {
+    timeStamp: number;
+    prompt: string;
+    result: string;
+    config: string;
+};
 type HistoryRecord = {
     companion: string;
     message: string;
@@ -305,6 +312,17 @@ type ChatRecord = {
     history: HistoryRecord[];
     default?: boolean;
 };
+declare class DramaEngineDatabase extends Dexie {
+    world: Dexie.Table<KeyValueRecord, string>;
+    prompts: Dexie.Table<PromptRecord, number>;
+    chats: Dexie.Table<ChatRecord, string>;
+    constructor(name?: string);
+    setCompanions: (companions: Companion[]) => Promise<void>;
+    writeSessionChats: (items: ChatRecord) => Promise<string>;
+    logChat: (id: string, history: ChatMessage[]) => Promise<string>;
+    recreateDatabase: () => Promise<Dexie>;
+}
+declare const db: DramaEngineDatabase;
 
 /**
  * Tags for kinds of interactions - currently not used
@@ -364,6 +382,22 @@ type PromptTemplate = {
     eos_token: string;
     unk_token: string;
     chat_template: string;
+};
+/** DEFAULTS */
+declare const defaultPromptConfig: PromptConfig;
+declare const defaultPromptTemplates: {
+    MISTRAL: {
+        bos_token: string;
+        eos_token: string;
+        unk_token: string;
+        chat_template: string;
+    };
+    CHATML: {
+        bos_token: string;
+        eos_token: string;
+        unk_token: string;
+        chat_template: string;
+    };
 };
 
 type ModelConfig = typeof defaultModelConfig;
@@ -765,4 +799,10 @@ declare class InstructionDeputy extends Deputy {
     protected runAction: (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion) => Promise<CompanionReply>;
 }
 
-export { AutoCompanion, Chat, ChatCompanion, type ChatMessage, type ChatSpeakerSelection, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, Deputy, Drama, InstructionDeputy, type Job, type JobStatus, Model, type ModelConfig, ModelError };
+declare class TestDeputy extends Deputy {
+    static readonly config: CompanionConfig;
+    constructor(configuration: CompanionConfig | undefined, drama: Drama);
+    protected runAction: (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion) => Promise<CompanionReply>;
+}
+
+export { AutoCompanion, Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, type CompanionReply, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, Deputy, Drama, InstructionDeputy, type Job, type JobStatus, Model, type ModelConfig, ModelError, Tag, TestDeputy, db, defaultPromptConfig, defaultPromptTemplates };
