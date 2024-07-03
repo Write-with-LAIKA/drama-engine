@@ -1,0 +1,58 @@
+/*
+	
+Context sizes: 
+teknium/OpenHermes-2-Mistral-7B				8192	=> 30k characters (<4 letter tokens)
+teknium/OpenHermes-2p5-Mistral-7B			8192	=> 30k characters (<4 letter tokens)
+NousResearch/Nous-Hermes-2-Mistral-7B-DPO	32768	=> 120k characters (<4 letter tokens)
+NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO	32768	=> 120k characters (<4 letter tokens)
+
+1 token is ~4 characters.
+*/
+
+
+export type ModelConfig = typeof defaultModelConfig;
+
+export const defaultModelConfig = {
+	model: 'teknium/OpenHermes-2p5-Mistral-7B',
+	n: 1,
+	presence_penalty: 0,
+	frequency_penalty: 0,
+	repetition_penalty: 1.2,
+
+	temperature: 0.93,
+	max_tokens: 200,
+	top_p: 0.93,
+	top_k: 4,
+	// min_p: 0.05,
+
+	stop: "",
+	stop_token_ids: [
+		0
+	],
+	ignore_eos: false,
+	skip_special_tokens: true,
+	spaces_between_special_tokens: true,
+}
+
+export const largeContextModelConfig = {
+	model: 'mistralai/Mixtral-8x7B-Instruct-v0.1', //'NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO',
+	n: 1,
+	presence_penalty: 0,
+	frequency_penalty: 0,
+	repetition_penalty: 1.2,
+
+	temperature: 0.93,
+	max_tokens: 512,
+	top_p: 0.93,
+	top_k: 4,
+	// min_p: 0.05,
+
+	stop: "",
+	stop_token_ids: [
+		0
+	],
+	ignore_eos: false,
+	skip_special_tokens: true,
+	spaces_between_special_tokens: true,
+}
+
