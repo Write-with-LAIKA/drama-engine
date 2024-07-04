@@ -31,7 +31,6 @@
   "homepage": "https://github.com/Write-with-LAIKA/drama-engine#readme",
   "dependencies": {
     "@huggingface/jinja": "^0.2.2",
-    "dexie": "^4.0.7",
     "ky": "^1.4.0",
     "uuid": "^10.0.0"
   },
