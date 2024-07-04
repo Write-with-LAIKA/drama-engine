@@ -1,4 +1,3 @@
-import { db } from "./database/database";
 import { ModelConfig, defaultModelConfig } from "./model-config";
 import { Job } from "./job";
 import { KyInstance, Options } from "ky";
@@ -256,11 +255,9 @@ export class Model {
 			// 	throw new ModelError("Job failed! COMPLETED not set.", "Invalid response status.", job, jobResponse);
 			// }
 
-			db.prompts.add({ timeStamp: Date.now(), prompt: job.prompt || "No prompt found", result: jobResponse.response || "NONE", config: JSON.stringify(this.modelConfig) });
-
 			return jobResponse;
 		}).catch((e) => {
-			db.prompts.add({ timeStamp: Date.now(), prompt: job.prompt || "No prompt found", result: "ERROR: " + JSON.stringify(e), config: JSON.stringify(this.modelConfig) });
+			// db.prompts.add({ timeStamp: Date.now(), prompt: job.prompt || "No prompt found", result: "ERROR: " + JSON.stringify(e), config: JSON.stringify(this.modelConfig) });
 
 			console.error(e);
 

@@ -1,8 +1,7 @@
 export { Drama } from './drama';
 export { Chat } from './chat';
 export type { ChatMessage, ChatSpeakerSelection } from './chat';
-export { db } from "./database/database"
-export type { ChatRecord } from "./database/database"
+export type { ChatRecord, PromptRecord, HistoryRecord, KeyValueRecord, StateTypes } from "./database/database"
 export { Category } from './event';
 export { Tag } from './tags';
 export { Context } from "./context";
@@ -21,4 +20,3 @@ export { TestDeputy } from "./companions/test-deputy";
 export { getRandomElement, randomArrayElement } from "./utils/array-utils";
 export { Companion, Operation } from "./companions/companion";
 export type { CompanionConfig, CompanionKind, CompanionScope, CompanionState } from "./companions/companion";
-export type { KeyValueRecord, StateTypes } from "./database/database"
