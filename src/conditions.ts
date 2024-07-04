@@ -1,4 +1,4 @@
-import { KeyValueRecord, StateTypes } from "./database/database";
+import { KeyValueRecord, StateTypes } from "./database";
 import { Tag } from "./tags";
 import { Category } from "./event";
 

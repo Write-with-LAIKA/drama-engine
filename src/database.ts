@@ -1,5 +1,5 @@
-import { ChatMessage } from "../chat";
-import { Companion } from "../companions/companion";
+import { ChatMessage } from "./chat";
+import { Companion } from "./companions/companion";
 
 export type StateTypes = number | string | boolean;
 export type KeyValueRecord = { key: string, value: StateTypes }
@@ -19,10 +19,10 @@ export interface Database {
 	addPromptEntry(record: PromptRecord): Promise<void>;
 
 	chats(): Promise<ChatRecord[]>;
-	getChat(chatID: string): Promise<ChatRecord>;
+	getChat(chatID: string): Promise<ChatRecord | undefined>;
 	deleteChat(chatID: string): Promise<void>;
-	logChat(id: string, history: ChatMessage[]): Promise<void>;
-	writeSessionChats(items: ChatRecord): Promise<void>;
+	logChat(id: string, history: ChatMessage[]): Promise<string>;
+	addChatEntry(items: ChatRecord): Promise<string>;
 
 }
 

@@ -1,4 +1,3 @@
-import Dexie from 'dexie';
 import { KyInstance, Options } from 'ky';
 import { Template } from '@huggingface/jinja';
 
@@ -312,17 +311,19 @@ type ChatRecord = {
     history: HistoryRecord[];
     default?: boolean;
 };
-declare class DramaEngineDatabase extends Dexie {
-    world: Dexie.Table<KeyValueRecord, string>;
-    prompts: Dexie.Table<PromptRecord, number>;
-    chats: Dexie.Table<ChatRecord, string>;
-    constructor(name?: string);
-    setCompanions: (companions: Companion[]) => Promise<void>;
-    writeSessionChats: (items: ChatRecord) => Promise<string>;
-    logChat: (id: string, history: ChatMessage[]) => Promise<string>;
-    recreateDatabase: () => Promise<Dexie>;
+interface Database {
+    reset(): Promise<void>;
+    setCompanions(companions: Companion[]): Promise<void>;
+    world(): Promise<KeyValueRecord[]>;
+    setWorldStateEntry(key: string, value: StateTypes): Promise<void>;
+    prompts(): Promise<PromptRecord[]>;
+    addPromptEntry(record: PromptRecord): Promise<void>;
+    chats(): Promise<ChatRecord[]>;
+    getChat(chatID: string): Promise<ChatRecord | undefined>;
+    deleteChat(chatID: string): Promise<void>;
+    logChat(id: string, history: ChatMessage[]): Promise<string>;
+    addChatEntry(items: ChatRecord): Promise<string>;
 }
-declare const db: DramaEngineDatabase;
 
 /**
  * Tags for kinds of interactions - currently not used
@@ -748,6 +749,7 @@ declare class Prompter {
 declare class Drama {
     model: Model;
     instance: KyInstance;
+    database: Database;
     additionalOptions?: Options;
     prompter: Prompter;
     companions: AutoCompanion[];
@@ -755,8 +757,8 @@ declare class Drama {
     jobs: Job[];
     chats: Chat[];
     private constructor();
-    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], kyInstance?: KyInstance, additionalOptions?: Options): Promise<Drama>;
-    reset: (companions?: Companion[]) => Promise<void>;
+    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], kyInstance: KyInstance | undefined, database: Database, additionalOptions?: Options): Promise<Drama>;
+    reset: () => Promise<void>;
     increaseWorldStateEntry: (key: string, value: number) => Promise<void>;
     setWorldStateEntry: (key: string, value: StateTypes) => Promise<void>;
     getWorldStateValue: (key: string) => StateTypes | undefined;
@@ -808,4 +810,4 @@ declare class TestDeputy extends Deputy {
 declare const getRandomElement: (array: any[]) => any;
 declare const randomArrayElement: <T>(array: T[]) => T;
 
-export { AutoCompanion, Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, Companion, type CompanionConfig, type CompanionKind, type CompanionReply, type CompanionScope, type CompanionState, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, Deputy, Drama, InstructionDeputy, type Job, type JobStatus, type KeyValueRecord, Model, type ModelConfig, ModelError, Operation, type StateTypes, Tag, TestDeputy, db, defaultPromptConfig, defaultPromptTemplates, getRandomElement, randomArrayElement };
+export { AutoCompanion, Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, Companion, type CompanionConfig, type CompanionKind, type CompanionReply, type CompanionScope, type CompanionState, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, type Database, Deputy, Drama, type HistoryRecord, InstructionDeputy, type Job, type JobStatus, type KeyValueRecord, Model, type ModelConfig, ModelError, Operation, type PromptRecord, type StateTypes, Tag, TestDeputy, defaultPromptConfig, defaultPromptTemplates, getRandomElement, randomArrayElement };

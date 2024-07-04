@@ -2,7 +2,7 @@ import { Template } from "@huggingface/jinja";
 import { Companion } from "./companions/companion";
 import { Context, ContextData, ContextDataTypes, ContextDecorator, defaultDecorators } from "./context";
 import { PromptConfig, PromptTemplate, defaultPromptConfig, defaultPromptTemplates } from "./prompt-config";
-import { KeyValueRecord } from "./database/database";
+import { KeyValueRecord } from "./database";
 import { evaluateCondition } from "./conditions";
 import { getRandomElement } from "./utils/array-utils";
 import { ChatMessage } from "./chat";

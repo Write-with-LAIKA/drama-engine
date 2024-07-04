@@ -158,67 +158,6 @@ _Companion.toID = (name) => {
 };
 var Companion = _Companion;
 
-// src/database/database.ts
-import Dexie from "dexie";
-
-// src/database/populate.ts
-async function populate() {
-  await db.world.bulkAdd([
-    { key: "TYPED_CHARACTERS", value: 0 },
-    { key: "COMPANION_INTERACTIONS", value: 0 },
-    { key: "SYSTEM_INTERACTIONS", value: 0 },
-    { key: "INPUT_TOKENS", value: 0 },
-    { key: "OUTPUT_TOKENS", value: 0 },
-    { key: "RUNTIME", value: 0 }
-  ]);
-}
-
-// src/database/database.ts
-var DramaEngineDatabase = class extends Dexie {
-  constructor(name = "drama-db") {
-    super(name);
-    this.setCompanions = async (companions) => {
-      return db.transaction("rw", db.world, async () => {
-        await this.world.bulkPut(
-          companions.map((companion) => {
-            return { key: "COMPANION_INTERACTIONS_" + companion.id.toUpperCase(), value: 0 };
-          })
-        );
-        await this.world.bulkPut(
-          companions.map((companion) => {
-            return { key: "COMPANION_ACTIONS_" + companion.id.toUpperCase(), value: 0 };
-          })
-        );
-      });
-    };
-    // write session as-is
-    this.writeSessionChats = async (items) => this.chats.put({ id: items.id, history: items.history });
-    // copy the whole chat history
-    this.logChat = async (id, history) => this.chats.put({
-      id,
-      history: history.filter((h) => h.companion.configuration.kind == "npc" || h.companion.configuration.kind == "user").map((h) => {
-        return { companion: h.companion.configuration.name, message: h.message, timeStamp: h.timeStamp };
-      })
-    });
-    this.recreateDatabase = async () => {
-      return db.delete().then(() => db.open());
-    };
-    this.version(74).stores({
-      world: "key",
-      prompts: "timeStamp",
-      chats: "id"
-    });
-  }
-};
-var db = new DramaEngineDatabase();
-db.on("populate", populate);
-function resetDatabase() {
-  return db.transaction("rw", db.world, db.chats, db.prompts, async () => {
-    await Promise.all(db.tables.map((table) => table.clear()));
-    await populate();
-  });
-}
-
 // src/drama.ts
 import { v4 as uuidv4 } from "uuid";
 
@@ -385,10 +324,8 @@ var Model = class {
         if (!jobResponse.id) {
           throw new Error("Job ID not found!");
         }
-        db.prompts.add({ timeStamp: Date.now(), prompt: job.prompt || "No prompt found", result: jobResponse.response || "NONE", config: JSON.stringify(this.modelConfig) });
         return jobResponse;
       }).catch((e) => {
-        db.prompts.add({ timeStamp: Date.now(), prompt: job.prompt || "No prompt found", result: "ERROR: " + JSON.stringify(e), config: JSON.stringify(this.modelConfig) });
         console.error(e);
         throw new ModelError("Job failed!", "Invalid response.", job, void 0, e instanceof Error ? e : void 0);
       });
@@ -1161,37 +1098,35 @@ var ChatCompanion = class extends AutoCompanion {
 
 // src/drama.ts
 var Drama = class _Drama {
-  constructor(companionConfigs, worldState, kyInstance, additionalOptions) {
+  constructor(companionConfigs, database, worldState, kyInstance, additionalOptions) {
     this.companions = [];
     this.worldState = [];
     this.jobs = [];
     this.chats = [];
-    this.reset = async (companions = this.companions) => {
+    this.reset = async () => {
       console.log("DRAMA ENGINE // RESET");
       this.jobs = [];
-      await resetDatabase();
-      await db.setCompanions(companions);
+      await this.database.reset();
+      await this.database.setCompanions(this.companions);
     };
     /* WORLD STATE MANAGEMENT */
     this.increaseWorldStateEntry = async (key, value) => {
       const ws = this.worldState.find((s) => s.key == key);
       if (ws) {
         ws.value = ws.value + value;
-        await db.world.where({ key }).modify({ value: ws.value });
       } else {
         this.worldState.push({ key, value });
-        await db.world.add({ key, value });
       }
+      await this.database.setWorldStateEntry(key, ws?.value || value);
     };
     this.setWorldStateEntry = async (key, value) => {
       const ws = this.worldState.find((s) => s.key == key);
       if (ws) {
         ws.value = value;
-        await db.world.where({ key }).modify({ value });
       } else {
         this.worldState.push({ key, value });
-        await db.world.add({ key, value });
       }
+      await this.database.setWorldStateEntry(key, value);
     };
     this.getWorldStateValue = (key) => {
       return this.worldState.find((s) => s.key == key)?.value;
@@ -1265,12 +1200,18 @@ var Drama = class _Drama {
       await this.increaseWorldStateEntry("INPUT_TOKENS", job.context.input_tokens);
       await this.increaseWorldStateEntry("OUTPUT_TOKENS", job.context.output_tokens);
       if (job.context.action && job.context.recipient)
-        this.increaseWorldStateEntry("COMPANION_ACTIONS_" + job.context.recipient.id.toUpperCase(), 1);
+        await this.increaseWorldStateEntry("COMPANION_ACTIONS_" + job.context.recipient.id.toUpperCase(), 1);
+      await this.database.addPromptEntry({
+        timeStamp: Date.now(),
+        prompt: job.prompt || "No prompt found",
+        result: response?.response || "NONE",
+        config: JSON.stringify(job.modelConfig)
+      });
       return response;
     };
     /* CHATS */
     this.restoreChats = (chatRecords) => {
-      chatRecords?.forEach(async (chatRecord) => await db.writeSessionChats(chatRecord));
+      chatRecords?.forEach(async (chatRecord) => await this.database.addChatEntry(chatRecord));
       this.chats.forEach(async (chat) => {
         let chatRecord;
         if (chatRecords && chatRecords.length > 0) {
@@ -1278,7 +1219,7 @@ var Drama = class _Drama {
             return elem.id === chat.id;
           });
         } else {
-          chatRecord = await db.chats.get(chat.id);
+          chatRecord = await this.database.getChat(chat.id);
         }
         if (chatRecord) {
           chat.history = chatRecord.history.map((h) => {
@@ -1315,7 +1256,7 @@ var Drama = class _Drama {
     };
     this.removeChat = (id) => {
       this.chats = this.chats.filter((c) => c.id != id);
-      db.chats.delete(id);
+      this.database.deleteChat(id);
     };
     this.runConversation = async (chat, rounds, context, lastSpeaker, except, callback) => {
       if (rounds <= 0) return [chat, lastSpeaker, void 0, context];
@@ -1357,13 +1298,13 @@ var Drama = class _Drama {
           lastSpeaker = activeSpeaker;
           if (context.question) chat.currentContext = context;
         } else {
-          await db.logChat(chat.id, chat.history);
+          await this.database.logChat(chat.id, chat.history);
           await this.syncInteractions();
           context = await this.runTriggers(context, callback);
           return [chat, lastSpeaker, activeSpeaker, context];
         }
       }
-      await db.logChat(chat.id, chat.history);
+      await this.database.logChat(chat.id, chat.history);
       await this.syncInteractions();
       context = await this.runTriggers(context, callback);
       return [chat, lastSpeaker, void 0, context];
@@ -1424,13 +1365,14 @@ var Drama = class _Drama {
     this.model = new Model();
     this.prompter = new Prompter(this.model.promptTemplate);
     this.instance = kyInstance;
+    this.database = database;
     this.additionalOptions = additionalOptions;
     this.companions = companionConfigs.map((c) => new c.class(c, this));
     console.log("DRAMA ENGINE // INITIATED");
     return this;
   }
-  static async initialize(defaultSituation, companionConfigs, kyInstance = ky, additionalOptions) {
-    const worldState = await db.world.toArray();
+  static async initialize(defaultSituation, companionConfigs, kyInstance = ky, database, additionalOptions) {
+    const worldState = await database.world() || [];
     if (!companionConfigs.find((c) => c.kind == "user"))
       companionConfigs = [
         ...companionConfigs,
@@ -1444,7 +1386,7 @@ var Drama = class _Drama {
           kind: "user"
         }
       ];
-    const drama = new _Drama(companionConfigs, worldState, kyInstance, additionalOptions);
+    const drama = new _Drama(companionConfigs, database, worldState, kyInstance, additionalOptions);
     drama.companions.forEach((companion) => {
       const interactions = worldState.find((w) => w.key == "COMPANION_INTERACTIONS_" + companion.id.toUpperCase());
       if (interactions && typeof interactions.value == "number")
@@ -1549,7 +1491,6 @@ export {
   Operation,
   Tag,
   TestDeputy,
-  db,
   defaultPromptConfig,
   defaultPromptTemplates,
   getRandomElement,

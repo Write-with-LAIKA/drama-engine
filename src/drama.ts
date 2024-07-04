@@ -1,5 +1,5 @@
 import { ActionDescription, Companion, CompanionConfig, Operation } from "./companions/companion";
-import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./database/database";
+import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./database";
 import { Tag } from "./tags";
 import { Job, JobStatus } from "./job";
 import { Context, ContextDataTypes, ContextDecorator } from "./context";
@@ -252,7 +252,7 @@ export class Drama {
 	/* CHATS */
 
 	restoreChats = (chatRecords?: ChatRecord[]) => {
-		chatRecords?.forEach(async (chatRecord) => await this.database.writeSessionChats(chatRecord));
+		chatRecords?.forEach(async (chatRecord) => await this.database.addChatEntry(chatRecord));
 		this.chats.forEach(async (chat) => {
 			let chatRecord: ChatRecord | undefined;
 

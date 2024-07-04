@@ -1,7 +1,8 @@
 export { Drama } from './drama';
 export { Chat } from './chat';
 export type { ChatMessage, ChatSpeakerSelection } from './chat';
-export type { ChatRecord, PromptRecord, HistoryRecord, KeyValueRecord, StateTypes } from "./database/database"
+export type { ChatRecord, PromptRecord, HistoryRecord, KeyValueRecord, StateTypes } from "./database"
+export { Database } from './database';
 export { Category } from './event';
 export { Tag } from './tags';
 export { Context } from "./context";
