@@ -12,7 +12,7 @@ export type CompanionScope = "document" | "last_sentence" | "last_paragraph" | "
 // Scope overrides the deputy's default scope
 export type ActionDescription = { id: string, label?: string, deputy: string, condition?: Condition, fallback?: CompanionScope }
 
-export enum Operation {
+export const enum Operation {
 	SET,
 	ADD,
 	SEND,

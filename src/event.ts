@@ -1,5 +1,5 @@
 
-export enum Category {
+export const enum Category {
 	GREETING,
 	CONFIRMATION,
 	SIGN_OFF,

@@ -5,7 +5,7 @@
  * @export
  * @enum {number}
  */
-export enum Tag { 
+export const enum Tag { 
 	NONE,
 	EVENT,
 	ACTION,

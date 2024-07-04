@@ -1,7 +1,7 @@
 
 /** TYPES */
 
-export enum PromptStyles {
+export const enum PromptStyles {
 	MISTRAL_FORMAT,
 	CHATML_FORMAT,
 }

@@ -330,13 +330,13 @@ declare const db: DramaEngineDatabase;
  * @export
  * @enum {number}
  */
-declare enum Tag {
+declare const enum Tag {
     NONE = 0,
     EVENT = 1,
     ACTION = 2
 }
 
-declare enum Category {
+declare const enum Category {
     GREETING = 0,
     CONFIRMATION = 1,
     SIGN_OFF = 2,
@@ -437,7 +437,7 @@ type ActionDescription = {
     condition?: Condition;
     fallback?: CompanionScope;
 };
-declare enum Operation {
+declare const enum Operation {
     SET = 0,
     ADD = 1,
     SEND = 2
@@ -805,4 +805,7 @@ declare class TestDeputy extends Deputy {
     protected runAction: (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion) => Promise<CompanionReply>;
 }
 
-export { AutoCompanion, Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, type CompanionReply, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, Deputy, Drama, InstructionDeputy, type Job, type JobStatus, Model, type ModelConfig, ModelError, Tag, TestDeputy, db, defaultPromptConfig, defaultPromptTemplates };
+declare const getRandomElement: (array: any[]) => any;
+declare const randomArrayElement: <T>(array: T[]) => T;
+
+export { AutoCompanion, Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, Companion, type CompanionConfig, type CompanionKind, type CompanionReply, type CompanionScope, type CompanionState, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, Deputy, Drama, InstructionDeputy, type Job, type JobStatus, type KeyValueRecord, Model, type ModelConfig, ModelError, Operation, type StateTypes, Tag, TestDeputy, db, defaultPromptConfig, defaultPromptTemplates, getRandomElement, randomArrayElement };
