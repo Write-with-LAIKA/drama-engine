@@ -133,7 +133,7 @@ The `Context` class is huge but well documented. The actual act of prompting the
 
 ### Prompt assembly
 
-All prompts are assembled on the fly depending on the context. This happens in the `assemblePrompt` function in the `Prompter` class. The prompter takes the `Context` object, the world state database and transforms them into a prompt using decorators and other mechanisms. Decorators are simple replacement-based templates that are used to tag specific pieces of information for referencing them in a job. E.g. we’re using the decorator USER TEXT=\"{{DATA}}\"." to label the user-provided textual data as USER TEXT, so a job can say “Summarise the USER TEXT” and the model will understand where to find the text in most cases. The prompter also adds some default information like the current data and time.
+All prompts are assembled on the fly depending on the context. This happens in the `assemblePrompt` function in the `Prompter` class. The prompter takes the `Context` object, the world state database and transforms them into a prompt using decorators and other mechanisms. Decorators are simple replacement-based templates that are used to tag specific pieces of information for referencing them in a job. E.g. we’re using the decorator `USER TEXT=\"{{DATA}}\"."` to label the user-provided textual data as `USER TEXT`, so a job can say “Summarise the USER TEXT” and the model will understand where to find the text in most cases. The prompter also adds some default information like the current data and time.
 
 The final prompt format (e.g. ChatML) is applied in a second step where the model uses a template to convert the prompt data to the right format.
 

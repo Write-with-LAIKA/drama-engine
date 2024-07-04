@@ -311,6 +311,14 @@ type ChatRecord = {
     history: HistoryRecord[];
     default?: boolean;
 };
+/**
+ * In order to support tracking of user interactions and updates to the world state, we added an interface that
+ * can be hooked up to a database. In our own application we use Dexie to store data in the browser but any
+ * storage mechanism can do. All functions are promises to allow for asynchronous loading and saving.
+ *
+ * @export
+ * @interface Database
+ */
 interface Database {
     reset(): Promise<void>;
     setCompanions(companions: Companion[]): Promise<void>;
