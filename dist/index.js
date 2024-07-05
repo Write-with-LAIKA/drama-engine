@@ -31,7 +31,6 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var src_exports = {};
 __export(src_exports, {
   AutoCompanion: () => AutoCompanion,
-  Category: () => Category,
   Chat: () => Chat,
   ChatCompanion: () => ChatCompanion,
   Companion: () => Companion,
@@ -41,8 +40,6 @@ __export(src_exports, {
   InstructionDeputy: () => InstructionDeputy,
   Model: () => Model,
   ModelError: () => ModelError,
-  Operation: () => Operation,
-  Tag: () => Tag,
   TestDeputy: () => TestDeputy,
   defaultPromptConfig: () => defaultPromptConfig,
   defaultPromptTemplates: () => defaultPromptTemplates,
@@ -51,43 +48,8 @@ __export(src_exports, {
 });
 module.exports = __toCommonJS(src_exports);
 
-// src/tags.ts
-var Tag = /* @__PURE__ */ ((Tag2) => {
-  Tag2[Tag2["NONE"] = 0] = "NONE";
-  Tag2[Tag2["EVENT"] = 1] = "EVENT";
-  Tag2[Tag2["ACTION"] = 2] = "ACTION";
-  return Tag2;
-})(Tag || {});
-
-// src/conditions.ts
-var evaluateCondition = (condition, worldState) => {
-  const min = condition.min || 0;
-  const max = condition.max || Number.MAX_SAFE_INTEGER;
-  switch (condition.tag) {
-    case 0 /* NONE */:
-      return true;
-    case 1 /* EVENT */:
-      const activeEvent = worldState.find((entry) => entry.key == condition.value);
-      return activeEvent != void 0 && activeEvent.value;
-    default:
-      break;
-  }
-  if (typeof condition.tag == "string") {
-    const entry = worldState.find((entry2) => entry2.key == condition.tag);
-    if (!entry) {
-      console.error("Invalid trigger: '" + condition.tag + "' not found in world state.");
-      return false;
-    }
-    if (condition.value && typeof condition.value != typeof entry.value) {
-      console.error("Invalid trigger: " + condition.tag + " has a different type than the corresponding world state.");
-      return false;
-    }
-    if (typeof entry.value == "number" && condition.value == void 0)
-      return entry.value >= min && entry.value < max;
-    return entry.value === condition.value;
-  }
-  return false;
-};
+// src/drama.ts
+var import_uuid = require("uuid");
 
 // src/prompt-config.ts
 var defaultPromptConfig = {
@@ -96,13 +58,13 @@ var defaultPromptConfig = {
   system_role_allowed: true
 };
 var defaultPromptTemplates = {
-  MISTRAL: {
+  "mistral": {
     bos_token: "<s>",
     eos_token: "</s>",
     unk_token: "<unk>",
     chat_template: "{{ bos_token }}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ '[INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ message['content'] + eos_token + ' ' }}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
   },
-  CHATML: {
+  "chatml": {
     bos_token: "<s>",
     eos_token: "<|im_end|>",
     unk_token: "<unk>",
@@ -130,7 +92,7 @@ var defaultModelConfig = {
   skip_special_tokens: true,
   spaces_between_special_tokens: true,
   extra: {
-    template: defaultPromptTemplates.CHATML,
+    template: defaultPromptTemplates.chatml,
     promptConfig: defaultPromptConfig
   }
 };
@@ -154,7 +116,7 @@ var largeContextModelConfig = {
   skip_special_tokens: true,
   spaces_between_special_tokens: true,
   extra: {
-    template: defaultPromptTemplates.MISTRAL,
+    template: defaultPromptTemplates.mistral,
     promptConfig: {
       max_prompt_length: 1e5,
       job_in_chat: false,
@@ -162,57 +124,6 @@ var largeContextModelConfig = {
     }
   }
 };
-
-// src/utils/array-utils.ts
-var getRandomElement = (array) => {
-  return array[Math.floor(Math.random() * array.length)];
-};
-var randomArrayElement = (array) => {
-  return array[Math.floor(Math.random() * array.length)];
-};
-
-// src/companions/companion.ts
-var Operation = /* @__PURE__ */ ((Operation2) => {
-  Operation2[Operation2["SET"] = 0] = "SET";
-  Operation2[Operation2["ADD"] = 1] = "ADD";
-  Operation2[Operation2["SEND"] = 2] = "SEND";
-  return Operation2;
-})(Operation || {});
-var _Companion = class _Companion {
-  constructor(configuration) {
-    this.modelConfig = void 0;
-    this.mood = { label: "neutral", prompt: void 0 };
-    this.getBasePrompt = () => this.configuration.base_prompt;
-    this.getMottosByEvent = (event, drama) => {
-      return this.configuration.mottos.filter((m) => m.category == event && m.condition && evaluateCondition(m.condition, drama.worldState)).flatMap((v) => v.lines) || [];
-    };
-    this.getRandomMottoByEvent = (event, drama) => {
-      const userName = drama.getWorldStateValue("USERNAME");
-      if (userName)
-        return randomArrayElement(this.getMottosByEvent(event, drama)).replace("{{USERNAME}}", userName) || "";
-      else
-        return randomArrayElement(this.getMottosByEvent(event, drama)) || "";
-    };
-    this.valueOf = () => this.id;
-    this.configuration = configuration;
-    this.id = _Companion.toID(configuration.name);
-    this.interactions = 0;
-    this.actions = 0;
-    this.status = "active";
-    if (configuration.temperature) {
-      this.modelConfig = { ...defaultModelConfig, temperature: configuration.temperature };
-    }
-    return this;
-  }
-  // id is unique and if companion has the same it's the same companion
-};
-_Companion.toID = (name) => {
-  return name.toLowerCase();
-};
-var Companion = _Companion;
-
-// src/drama.ts
-var import_uuid = require("uuid");
 
 // src/model.ts
 var ModelError = class _ModelError extends Error {
@@ -476,6 +387,44 @@ var Context = class {
   // removeData = (type: ContextDataTypes) => this.data = this.data.filter(d => d.type != type);
 };
 
+// src/conditions.ts
+var evaluateCondition = (condition, worldState) => {
+  const min = condition.min || 0;
+  const max = condition.max || Number.MAX_SAFE_INTEGER;
+  switch (condition.tag) {
+    case "none":
+      return true;
+    case "event":
+      const activeEvent = worldState.find((entry) => entry.key == condition.value);
+      return activeEvent != void 0 && activeEvent.value;
+    default:
+      break;
+  }
+  if (typeof condition.tag == "string") {
+    const entry = worldState.find((entry2) => entry2.key == condition.tag);
+    if (!entry) {
+      console.error("Invalid trigger: '" + condition.tag + "' not found in world state.");
+      return false;
+    }
+    if (condition.value && typeof condition.value != typeof entry.value) {
+      console.error("Invalid trigger: " + condition.tag + " has a different type than the corresponding world state.");
+      return false;
+    }
+    if (typeof entry.value == "number" && condition.value == void 0)
+      return entry.value >= min && entry.value < max;
+    return entry.value === condition.value;
+  }
+  return false;
+};
+
+// src/utils/array-utils.ts
+var getRandomElement = (array) => {
+  return array[Math.floor(Math.random() * array.length)];
+};
+var randomArrayElement = (array) => {
+  return array[Math.floor(Math.random() * array.length)];
+};
+
 // src/utils/time-utils.ts
 var unixTimestampToDate = (timestamp) => {
   const options = {
@@ -698,6 +647,40 @@ var getRandomParagraph = (document) => {
   const selectedParagraph = randomArrayElement(paragraphs);
   return shortenText(selectedParagraph, 1e3).trim();
 };
+
+// src/companions/companion.ts
+var _Companion = class _Companion {
+  constructor(configuration) {
+    this.modelConfig = void 0;
+    this.mood = { label: "neutral", prompt: void 0 };
+    this.getBasePrompt = () => this.configuration.base_prompt;
+    this.getMottosByEvent = (event, drama) => {
+      return this.configuration.mottos.filter((m) => m.category == event && m.condition && evaluateCondition(m.condition, drama.worldState)).flatMap((v) => v.lines) || [];
+    };
+    this.getRandomMottoByEvent = (event, drama) => {
+      const userName = drama.getWorldStateValue("USERNAME");
+      if (userName)
+        return randomArrayElement(this.getMottosByEvent(event, drama)).replace("{{USERNAME}}", userName) || "";
+      else
+        return randomArrayElement(this.getMottosByEvent(event, drama)) || "";
+    };
+    this.valueOf = () => this.id;
+    this.configuration = configuration;
+    this.id = _Companion.toID(configuration.name);
+    this.interactions = 0;
+    this.actions = 0;
+    this.status = "active";
+    if (configuration.temperature) {
+      this.modelConfig = { ...defaultModelConfig, temperature: configuration.temperature };
+    }
+    return this;
+  }
+  // id is unique and if companion has the same it's the same companion
+};
+_Companion.toID = (name) => {
+  return name.toLowerCase();
+};
+var Companion = _Companion;
 
 // src/companions/auto-companion.ts
 var AutoCompanion = class _AutoCompanion extends Companion {
@@ -1336,6 +1319,7 @@ var Drama = class _Drama {
           if (context.action)
             this.logAction(activeSpeaker);
           if (context.quote == void 0) {
+            callback && callback(chat, activeSpeaker);
             context = await activeSpeaker.generateReply(chat, context, lastSpeaker);
           }
           const excerpt = context.excerpt;
@@ -1344,7 +1328,7 @@ var Drama = class _Drama {
           const answer = excerpt || message || quote;
           if (answer) {
             const appendedMessage = chat.appendMessage(activeSpeaker, answer, context);
-            callback && callback(chat, appendedMessage);
+            callback && callback(chat, activeSpeaker, appendedMessage);
             if (excerpt) context.excerpt = void 0;
           }
           activeSpeaker.status = "free";
@@ -1371,7 +1355,7 @@ var Drama = class _Drama {
             if (typeof trigger.action == "string") {
               const companionChat = this.getCompanionChat(companion);
               if (!companionChat) return context;
-              if (trigger.condition.tag == 1 /* EVENT */ && trigger.condition.value && typeof trigger.condition.value == "string") {
+              if (trigger.condition.tag == "event" && trigger.condition.value && typeof trigger.condition.value == "string") {
                 await this.setWorldStateEntry(trigger.condition.value, false);
               }
               context.recipient = companion;
@@ -1380,11 +1364,11 @@ var Drama = class _Drama {
               return result[3] || context;
             } else {
               if (!trigger.effect) continue;
-              if (trigger.effect.tag == 1 /* EVENT */ && trigger.effect.value && typeof trigger.effect.value == "string") {
+              if (trigger.effect.tag == "event" && trigger.effect.value && typeof trigger.effect.value == "string") {
                 await this.setWorldStateEntry(trigger.effect.value, true);
                 console.log("Setting event " + trigger.effect.value);
                 console.log(trigger.condition);
-              } else if (trigger.effect.tag == 2 /* ACTION */ && trigger.effect.value && typeof trigger.effect.value == "string") {
+              } else if (trigger.effect.tag == "action" && trigger.effect.value && typeof trigger.effect.value == "string") {
                 const companionChat = this.getCompanionChat(companion);
                 if (!companionChat) return context;
                 context.recipient = companion;
@@ -1393,10 +1377,10 @@ var Drama = class _Drama {
                 return result[3] || context;
               } else if (typeof trigger.effect.tag == "string" && trigger.effect.value) {
                 switch (trigger.action) {
-                  case 0 /* SET */:
+                  case "set":
                     await this.setWorldStateEntry(trigger.effect.tag, trigger.effect.value);
                     break;
-                  case 1 /* ADD */:
+                  case "add":
                     if (typeof trigger.effect.value == "number")
                       await this.increaseWorldStateEntry(trigger.effect.tag, trigger.effect.value);
                     else
@@ -1470,17 +1454,6 @@ var Drama = class _Drama {
   }
 };
 
-// src/event.ts
-var Category = /* @__PURE__ */ ((Category2) => {
-  Category2[Category2["GREETING"] = 0] = "GREETING";
-  Category2[Category2["CONFIRMATION"] = 1] = "CONFIRMATION";
-  Category2[Category2["SIGN_OFF"] = 2] = "SIGN_OFF";
-  Category2[Category2["AUTO_TASK"] = 3] = "AUTO_TASK";
-  Category2[Category2["QUICKIE"] = 4] = "QUICKIE";
-  Category2[Category2["OPENER"] = 5] = "OPENER";
-  return Category2;
-})(Category || {});
-
 // src/companions/instruction-deputy.ts
 var _InstructionDeputy = class _InstructionDeputy extends Deputy {
   constructor(configuration = _InstructionDeputy.config, drama) {
@@ -1532,7 +1505,6 @@ var TestDeputy = _TestDeputy;
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AutoCompanion,
-  Category,
   Chat,
   ChatCompanion,
   Companion,
@@ -1542,8 +1514,6 @@ var TestDeputy = _TestDeputy;
   InstructionDeputy,
   Model,
   ModelError,
-  Operation,
-  Tag,
   TestDeputy,
   defaultPromptConfig,
   defaultPromptTemplates,

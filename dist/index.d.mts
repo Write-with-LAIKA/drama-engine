@@ -333,27 +333,8 @@ interface Database {
     addChatEntry(items: ChatRecord): Promise<string>;
 }
 
-/**
- * Tags for kinds of interactions - currently not used
- *
- * @export
- * @enum {number}
- */
-declare const enum Tag {
-    NONE = 0,
-    EVENT = 1,
-    ACTION = 2
-}
-
-declare const enum Category {
-    GREETING = 0,
-    CONFIRMATION = 1,
-    SIGN_OFF = 2,
-    AUTO_TASK = 3,
-    QUICKIE = 4,
-    OPENER = 5
-}
-
+type Tag = "none" | "event" | "action";
+type Category = "greeting" | "confirmation" | "sign-off";
 /**
  * Some shortcuts for listing a number of standard utterances that are produced without using the LLM.
  * @date 31/01/2024
@@ -395,13 +376,13 @@ type PromptTemplate = {
 /** DEFAULTS */
 declare const defaultPromptConfig: PromptConfig;
 declare const defaultPromptTemplates: {
-    MISTRAL: {
+    mistral: {
         bos_token: string;
         eos_token: string;
         unk_token: string;
         chat_template: string;
     };
-    CHATML: {
+    chatml: {
         bos_token: string;
         eos_token: string;
         unk_token: string;
@@ -446,13 +427,9 @@ type ActionDescription = {
     condition?: Condition;
     fallback?: CompanionScope;
 };
-declare const enum Operation {
-    SET = 0,
-    ADD = 1,
-    SEND = 2
-}
+type TriggerOperation = "set" | "add" | "send";
 type TriggerDescription = {
-    action: string | Operation;
+    action: string | TriggerOperation;
     effect?: Condition;
     condition: Condition;
 };
@@ -790,9 +767,9 @@ declare class Drama {
     addCompanionChat: (companion: Companion, situation: string) => Chat;
     addChat: (id: string, situation: string, companionIDs: string[], maxRounds?: number, speakerSelection?: ChatSpeakerSelection) => Chat;
     removeChat: (id: string) => void;
-    runConversation: (chat: Chat, rounds: number, context: Context, lastSpeaker?: AutoCompanion, except?: Companion[], callback?: (chat: Chat, message?: ChatMessage) => void) => Promise<[Chat, AutoCompanion | undefined, AutoCompanion | undefined, Context | undefined]>;
-    runChat: (chat: Chat, rounds: number, context: Context, lastSpeaker?: AutoCompanion, except?: Companion[], callback?: (chat: Chat, message?: ChatMessage) => void) => Promise<[Chat, AutoCompanion | undefined, AutoCompanion | undefined, Context | undefined]>;
-    runTriggers: (context: Context, callback?: (chat: Chat, message?: ChatMessage) => void) => Promise<Context>;
+    runConversation: (chat: Chat, rounds: number, context: Context, lastSpeaker?: AutoCompanion, except?: Companion[], callback?: (chat: Chat, speaker?: AutoCompanion, message?: ChatMessage) => void) => Promise<[Chat, AutoCompanion | undefined, AutoCompanion | undefined, Context | undefined]>;
+    runChat: (chat: Chat, rounds: number, context: Context, lastSpeaker?: AutoCompanion, except?: Companion[], callback?: (chat: Chat, speaker?: AutoCompanion, message?: ChatMessage) => void) => Promise<[Chat, AutoCompanion | undefined, AutoCompanion | undefined, Context | undefined]>;
+    runTriggers: (context: Context, callback?: (chat: Chat, speaker?: AutoCompanion, message?: ChatMessage) => void) => Promise<Context>;
 }
 
 /**
@@ -818,4 +795,4 @@ declare class TestDeputy extends Deputy {
 declare const getRandomElement: (array: any[]) => any;
 declare const randomArrayElement: <T>(array: T[]) => T;
 
-export { AutoCompanion, Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, Companion, type CompanionConfig, type CompanionKind, type CompanionReply, type CompanionScope, type CompanionState, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, type Database, Deputy, Drama, type HistoryRecord, InstructionDeputy, type Job, type JobStatus, type KeyValueRecord, Model, type ModelConfig, ModelError, Operation, type PromptRecord, type StateTypes, Tag, TestDeputy, defaultPromptConfig, defaultPromptTemplates, getRandomElement, randomArrayElement };
+export { AutoCompanion, type Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, Companion, type CompanionConfig, type CompanionKind, type CompanionReply, type CompanionScope, type CompanionState, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, type Database, Deputy, Drama, type HistoryRecord, InstructionDeputy, type Job, type JobStatus, type KeyValueRecord, Model, type ModelConfig, ModelError, type PromptRecord, type StateTypes, type Tag, TestDeputy, type TriggerOperation, defaultPromptConfig, defaultPromptTemplates, getRandomElement, randomArrayElement };

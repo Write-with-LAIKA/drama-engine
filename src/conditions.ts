@@ -1,6 +1,7 @@
 import { KeyValueRecord, StateTypes } from "./database";
-import { Tag } from "./tags";
-import { Category } from "./event";
+
+export type Tag = "none" | "event" | "action";
+export type Category = "greeting" | "confirmation" | "sign-off";
 
 /**
  * Some shortcuts for listing a number of standard utterances that are produced without using the LLM.
@@ -42,9 +43,9 @@ export const evaluateCondition = (condition: Condition, worldState: KeyValueReco
 	const max = condition.max || Number.MAX_SAFE_INTEGER;
 
 	switch (condition.tag) {
-		case Tag.NONE:
+		case "none":
 			return true;
-		case Tag.EVENT:
+		case "event":
 			const activeEvent = worldState.find(entry => entry.key == condition.value);
 			return activeEvent != undefined && activeEvent.value as boolean;
 		default:

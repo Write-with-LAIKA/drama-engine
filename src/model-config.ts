@@ -35,7 +35,7 @@ export const defaultModelConfig = {
 	spaces_between_special_tokens: true,
 
 	extra: {
-		template: defaultPromptTemplates.CHATML,
+		template: defaultPromptTemplates.chatml,
 		promptConfig: defaultPromptConfig,
 	}
 }
@@ -62,7 +62,7 @@ export const largeContextModelConfig = {
 	spaces_between_special_tokens: true,
 
 	extra: {
-		template: defaultPromptTemplates.MISTRAL,
+		template: defaultPromptTemplates.mistral,
 		promptConfig: {
 			max_prompt_length: 100000,
 			job_in_chat: false,

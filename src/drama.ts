@@ -1,6 +1,5 @@
-import { ActionDescription, Companion, CompanionConfig, Operation } from "./companions/companion";
+import { ActionDescription, Companion, CompanionConfig, TriggerOperation } from "./companions/companion";
 import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./database";
-import { Tag } from "./tags";
 import { Job, JobStatus } from "./job";
 import { Context, ContextDataTypes, ContextDecorator } from "./context";
 import { v4 as uuidv4 } from "uuid";
@@ -9,7 +8,7 @@ import { Prompter } from "./prompter";
 import { PromptConfig } from "./prompt-config";
 import { Chat, ChatMessage, ChatSpeakerSelection } from "./chat";
 import { AutoCompanion } from "./companions/auto-companion";
-import { evaluateCondition } from "./conditions";
+import { Tag, evaluateCondition } from "./conditions";
 import ky, { KyInstance, Options } from "ky";
 import { ChatCompanion } from "./companions/chat-companion";
 
@@ -307,7 +306,7 @@ export class Drama {
 		this.database.deleteChat(id);
 	};
 
-	runConversation = async (chat: Chat, rounds: number, context: Context, lastSpeaker?: AutoCompanion, except?: Companion[], callback?: (chat: Chat, message?: ChatMessage) => void): Promise<[Chat, AutoCompanion | undefined, AutoCompanion | undefined, Context | undefined]> => {
+	runConversation = async (chat: Chat, rounds: number, context: Context, lastSpeaker?: AutoCompanion, except?: Companion[], callback?: (chat: Chat, speaker?: AutoCompanion, message?: ChatMessage) => void): Promise<[Chat, AutoCompanion | undefined, AutoCompanion | undefined, Context | undefined]> => {
 
 		if (rounds <= 0) return [chat, lastSpeaker, undefined, context];
 
@@ -325,7 +324,7 @@ export class Drama {
 		return await this.runConversation(newChat, rounds - roundsTaken, newContext || context, newLastSpeaker, except, callback);
 	}
 
-	runChat = async (chat: Chat, rounds: number, context: Context, lastSpeaker?: AutoCompanion, except?: Companion[], callback?: (chat: Chat, message?: ChatMessage) => void): Promise<[Chat, AutoCompanion | undefined, AutoCompanion | undefined, Context | undefined]> => {
+	runChat = async (chat: Chat, rounds: number, context: Context, lastSpeaker?: AutoCompanion, except?: Companion[], callback?: (chat: Chat, speaker?: AutoCompanion, message?: ChatMessage) => void): Promise<[Chat, AutoCompanion | undefined, AutoCompanion | undefined, Context | undefined]> => {
 
 		// We last asked a question
 		if (chat.currentContext) {
@@ -354,6 +353,7 @@ export class Drama {
 
 				// skip inference if we just post a quote
 				if (context.quote == undefined) {
+					callback && callback(chat, activeSpeaker);
 					context = await activeSpeaker.generateReply(chat, context, lastSpeaker);
 				}
 
@@ -367,7 +367,7 @@ export class Drama {
 				if (answer) {
 					// append the last message to the chat
 					const appendedMessage = chat.appendMessage(activeSpeaker, answer, context);
-					callback && callback(chat, appendedMessage);
+					callback && callback(chat, activeSpeaker, appendedMessage);
 
 					if (excerpt) context.excerpt = undefined; // excerpt gets removed otherwise it gets added twice
 				}
@@ -399,7 +399,7 @@ export class Drama {
 
 	/* TRIGGERS */
 
-	runTriggers = async (context: Context, callback?: (chat: Chat, message?: ChatMessage) => void): Promise<Context> => {
+	runTriggers = async (context: Context, callback?: (chat: Chat, speaker?: AutoCompanion, message?: ChatMessage) => void): Promise<Context> => {
 
 		for (const companion of this.companions) {
 
@@ -415,7 +415,7 @@ export class Drama {
 						if (!companionChat) return context;
 
 						// set event to false before executing action (so we don't run in circles)
-						if (trigger.condition.tag == Tag.EVENT && trigger.condition.value && typeof trigger.condition.value == "string") {
+						if (trigger.condition.tag == "event" && trigger.condition.value && typeof trigger.condition.value == "string") {
 							await this.setWorldStateEntry(trigger.condition.value, false);
 						}
 
@@ -430,14 +430,14 @@ export class Drama {
 						if (!trigger.effect) continue;
 
 						// manipulate the world state
-						if (trigger.effect.tag == Tag.EVENT && trigger.effect.value && typeof trigger.effect.value == "string") {
+						if (trigger.effect.tag == "event" && trigger.effect.value && typeof trigger.effect.value == "string") {
 							// send an event
 							await this.setWorldStateEntry(trigger.effect.value, true);
 
 							console.log("Setting event " + trigger.effect.value);
 							console.log(trigger.condition);
 
-						} else if (trigger.effect.tag == Tag.ACTION && trigger.effect.value && typeof trigger.effect.value == "string") {
+						} else if (trigger.effect.tag == "action" && trigger.effect.value && typeof trigger.effect.value == "string") {
 
 							// run the action
 							const companionChat = this.getCompanionChat(companion);
@@ -451,10 +451,10 @@ export class Drama {
 
 							// manipulate the world state
 							switch (trigger.action) {
-								case Operation.SET:
+								case "set":
 									await this.setWorldStateEntry(trigger.effect.tag, trigger.effect.value);
 									break;
-								case Operation.ADD:
+								case "add":
 									if (typeof trigger.effect.value == "number")
 										await this.increaseWorldStateEntry(trigger.effect.tag, trigger.effect.value);
 									else

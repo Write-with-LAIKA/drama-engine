@@ -1,7 +1,6 @@
-import { Condition, ConditionalLine, evaluateCondition } from "../conditions";
+import { Category, Condition, ConditionalLine, evaluateCondition } from "../conditions";
 import { ModelConfig, defaultModelConfig } from "../model-config";
 import { Drama } from "../drama";
-import { Category } from "../event";
 import { getRandomElement, randomArrayElement } from "../utils/array-utils";
 import { AutoCompanion } from "./auto-companion";
 
@@ -12,12 +11,8 @@ export type CompanionScope = "document" | "last_sentence" | "last_paragraph" | "
 // Scope overrides the deputy's default scope
 export type ActionDescription = { id: string, label?: string, deputy: string, condition?: Condition, fallback?: CompanionScope }
 
-export const enum Operation {
-	SET,
-	ADD,
-	SEND,
-}
-export type TriggerDescription = { action: string | Operation, effect?: Condition, condition: Condition }
+export type TriggerOperation = "set" | "add" | "send";
+export type TriggerDescription = { action: string | TriggerOperation, effect?: Condition, condition: Condition }
 
 export type CompanionConfig = {
 	name: string,
