@@ -31,9 +31,15 @@ export class Drama {
 		worldState: KeyValueRecord[],
 		kyInstance: KyInstance,
 		additionalOptions?: Options,
-		) {
+	) {
 		this.worldState = worldState;
-		this.model = new Model();
+
+		const apiEndpoint = process.env.DE_ENDPOINT_URL || process.env.NEXT_PUBLIC_DE_ENDPOINT_URL || 'v1/completions';
+		if (apiEndpoint.includes('/chat/completions')) {
+			logger.error("NOTICE: Chat completion endpoint detected. This chat format has not yet been implemented. Nothing is likely to work.");
+		}
+
+		this.model = new Model(apiEndpoint);
 		this.prompter = new Prompter(this.model.promptTemplate);
 		this.instance = kyInstance;
 		this.database = database;

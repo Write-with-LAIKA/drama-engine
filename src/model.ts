@@ -93,11 +93,11 @@ export class Model {
 
 	/**
 	 * Creates an instance of Model.
-	 * @param {string} [path='/api/user/writersroom/generate']
+	 * @param {string}
 	 * @memberof Model
 	 */
-	constructor(path = '/api/user/writersroom/generate') {
-		this.path = path;
+	constructor(path: string) {
+		this.path = path.startsWith('/') ? path.slice(1) : path;
 		return this;
 	}
 
