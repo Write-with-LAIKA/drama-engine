@@ -1,5 +1,5 @@
+import { ModelConfig } from "./config/models";
 import { Context } from "./context";
-import { ModelConfig } from "./model-config";
 
 
 /**

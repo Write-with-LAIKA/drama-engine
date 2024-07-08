@@ -1,7 +1,8 @@
-import { ModelConfig, defaultModelConfig } from "./model-config";
-import { Job } from "./job";
 import { KyInstance, Options } from "ky";
-import { PromptConfig, PromptTemplate } from "./prompt-config";
+import { ModelConfig, defaultModelConfig } from "./config/models";
+import { PromptConfig, PromptTemplate } from "./config/prompts";
+import { Job } from "./job";
+import { logger } from "./utils/logging-utils";
 
 /**
  * The response from the backend/model including the number of tokens in and out.
@@ -116,7 +117,7 @@ export class Model {
 			return jobResponse;
 		}
 		catch (error) {
-			console.error('Error parsing JSON:', error);
+			logger.error('Error parsing JSON:', error);
 			throw new Error("JSON Parsing error.");
 		}
 	}
@@ -155,7 +156,7 @@ export class Model {
 
 				if (line.startsWith('data:')) {
 					const dataMessage = line.substring(5).trim();
-					// console.debug(`Data: ${dataMessage}\n`);
+					// logger.debug(`Data: ${dataMessage}\n`);
 					if (dataMessage && dataMessage !== '[DONE]') {
 						try {
 							const dataObject = JSON.parse(dataMessage);
@@ -168,7 +169,7 @@ export class Model {
 							 */
 							completeResponse.push(dataObject.choices[0]?.text)
 						} catch (error) {
-							console.error('Error parsing JSON:', error);
+							logger.error('Error parsing JSON:', error);
 							throw new Error("JSON Parsing error.")
 						}
 					}
@@ -248,7 +249,7 @@ export class Model {
 			// jobResponse.runtime && (this.runtime += jobResponse.runtime);
 
 			if (!jobResponse.id) {
-				// console.info(jobResponse);
+				// logger.debug(jobResponse);
 				throw new Error("Job ID not found!");
 			}
 			// if (jobResponse.status != "COMPLETED") {
@@ -259,7 +260,7 @@ export class Model {
 		}).catch((e) => {
 			// db.prompts.add({ timeStamp: Date.now(), prompt: job.prompt || "No prompt found", result: "ERROR: " + JSON.stringify(e), config: JSON.stringify(this.modelConfig) });
 
-			console.error(e);
+			logger.error(e);
 
 			throw new ModelError("Job failed!", "Invalid response.", job, undefined, e instanceof Error ? e : undefined);
 		})

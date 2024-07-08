@@ -1,15 +1,16 @@
 import { Template } from "@huggingface/jinja";
-import { Companion } from "./companions/companion";
-import { Context, ContextData, ContextDataTypes, ContextDecorator, defaultDecorators } from "./context";
-import { PromptConfig, PromptTemplate, defaultPromptConfig } from "./prompt-config";
-import { KeyValueRecord } from "./database";
-import { evaluateCondition } from "./conditions";
-import { getRandomElement } from "./utils/array-utils";
 import { ChatMessage } from "./chat";
+import { Companion } from "./companions/companion";
+import { evaluateCondition } from "./conditions";
+import { PromptConfig, PromptTemplate, defaultPromptConfig } from "./config/prompts";
+import { Context, ContextDataTypes, ContextDecorator, defaultDecorators } from "./context";
+import { KeyValueRecord } from "./database";
+import { getRandomElement } from "./utils/array-utils";
+import { logger } from "./utils/logging-utils";
 import { unixTimestampToDate } from "./utils/time-utils";
 
 /**
- * A simple wrapper to make it possible to append text if and only if the text is not undefined. Separator between old 
+ * A simple wrapper to make it possible to append text if and only if the text is not undefined. Separator between old
  * and new text can be set. Always appends at the end.
  *
  * @class Prompt
@@ -107,7 +108,7 @@ export class Prompter {
 		});
 
 		if (true) {
-			console.log("Prompt: ", result);
+			logger.debug("Prompt: ", result);
 		}
 
 		return result;
@@ -123,7 +124,7 @@ export class Prompter {
 	 * @param {ContextDecorator[]} [decorators=[]]
 	 * @param {PromptConfig} [config=defaultPromptConfig]
 	 * @param {PromptTemplate} [promptTemplate]
-	 * @return {*} 
+	 * @return {*}
 	 */
 	assemblePrompt = (companion: Companion,
 		worldState: KeyValueRecord[],
@@ -153,8 +154,8 @@ export class Prompter {
 		const paragraphData = this.decorate("paragraph", context.paragraph, allDecorators);
 		const inputData = textData || paragraphData || this.decorate("text", context.input, allDecorators);;
 
-		console.log("context", { ...context });
-		console.log("input data", context.query()?.substring(0, 250));
+		logger.debug("context", { ...context });
+		logger.debug("input data", context.query()?.substring(0, 250));
 
 		const moodData = companion.mood.prompt;
 

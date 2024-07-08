@@ -1,7 +1,7 @@
 import { Category, Condition, ConditionalLine, evaluateCondition } from "../conditions";
-import { ModelConfig, defaultModelConfig } from "../model-config";
+import { ModelConfig, defaultModelConfig } from "../config/models";
 import { Drama } from "../drama";
-import { getRandomElement, randomArrayElement } from "../utils/array-utils";
+import { randomArrayElement } from "../utils/array-utils";
 import { AutoCompanion } from "./auto-companion";
 
 export type CompanionState = "disabled" | "free" | "active" | "autonomous" | "chat-only";

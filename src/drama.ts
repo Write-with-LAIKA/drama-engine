@@ -1,16 +1,17 @@
-import { ActionDescription, Companion, CompanionConfig, TriggerOperation } from "./companions/companion";
-import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./database";
-import { Job, JobStatus } from "./job";
-import { Context, ContextDataTypes, ContextDecorator } from "./context";
+import ky, { KyInstance, Options } from "ky";
 import { v4 as uuidv4 } from "uuid";
-import { Model } from "./model";
-import { Prompter } from "./prompter";
-import { PromptConfig } from "./prompt-config";
 import { Chat, ChatMessage, ChatSpeakerSelection } from "./chat";
 import { AutoCompanion } from "./companions/auto-companion";
-import { Tag, evaluateCondition } from "./conditions";
-import ky, { KyInstance, Options } from "ky";
 import { ChatCompanion } from "./companions/chat-companion";
+import { ActionDescription, Companion, CompanionConfig } from "./companions/companion";
+import { evaluateCondition } from "./conditions";
+import { PromptConfig } from "./config/prompts";
+import { Context, ContextDecorator } from "./context";
+import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./database";
+import { Job, JobStatus } from "./job";
+import { Model } from "./model";
+import { Prompter } from "./prompter";
+import { logger } from "./utils/logging-utils";
 
 export class Drama {
 	model: Model;
@@ -39,7 +40,7 @@ export class Drama {
 		this.additionalOptions = additionalOptions;
 		this.companions = companionConfigs.map(c => new c.class(c, this));
 
-		console.log("DRAMA ENGINE // INITIATED");
+		logger.info("DRAMA ENGINE // INITIATED");
 
 		return this;
 	}
@@ -110,7 +111,7 @@ export class Drama {
 	}
 
 	reset = async () => {
-		console.log("DRAMA ENGINE // RESET");
+		logger.info("DRAMA ENGINE // RESET");
 
 		this.jobs = [];
 		await this.database.reset();
@@ -192,8 +193,7 @@ export class Drama {
 			timeStamp: Date.now(),
 		}
 
-		console.log("new job: ")
-		console.log(job)
+		logger.debug("new job: ", job);
 
 		this.jobs.push(job);
 	}
@@ -230,7 +230,7 @@ export class Drama {
 		const response = await this.model.runJob(job, this.instance, this.additionalOptions);
 		response && job.context.addUsage(response);
 
-		console.info("runJob", job, "-->", response);
+		logger.debug("runJob", job, "-->", response);
 
 		await this.increaseWorldStateEntry("INPUT_TOKENS", job.context.input_tokens);
 		await this.increaseWorldStateEntry("OUTPUT_TOKENS", job.context.output_tokens);
@@ -291,13 +291,13 @@ export class Drama {
 			existingChat.companions = chatCompanions;
 			existingChat.maxRounds = maxRounds;
 			existingChat.speakerSelection = speakerSelection;
-			console.log("Reconfiguring existing chat: " + existingChat.id);
+			logger.debug("Reconfiguring existing chat: " + existingChat.id);
 			return existingChat;
 		}
 
 		const chat = new Chat(this, id, situation, chatCompanions, maxRounds, speakerSelection);
 		this.chats.push(chat);
-		console.log("New chat: " + chat.id);
+		logger.info("New chat: " + chat.id);
 		return chat;
 	}
 
@@ -343,7 +343,7 @@ export class Drama {
 
 			if (activeSpeaker && activeSpeaker.configuration.kind != "user") {
 
-				console.log("Setting active speaker", activeSpeaker);
+				logger.info("Setting active speaker", activeSpeaker);
 
 				activeSpeaker.status = "active";
 				rounds--;
@@ -434,8 +434,7 @@ export class Drama {
 							// send an event
 							await this.setWorldStateEntry(trigger.effect.value, true);
 
-							console.log("Setting event " + trigger.effect.value);
-							console.log(trigger.condition);
+							logger.info("Setting event " + trigger.effect.value + " with condition " + trigger.condition);
 
 						} else if (trigger.effect.tag == "action" && trigger.effect.value && typeof trigger.effect.value == "string") {
 
@@ -458,12 +457,12 @@ export class Drama {
 									if (typeof trigger.effect.value == "number")
 										await this.increaseWorldStateEntry(trigger.effect.tag, trigger.effect.value);
 									else
-										console.error("Operation '" + trigger.action + "' needs a value in the condition that is number!");
+										logger.error("Operation '" + trigger.action + "' needs a value in the condition that is number!");
 									break;
-								default: console.error("Operation '" + trigger.action + "' is not implemented yet!");
+								default: logger.error("Operation '" + trigger.action + "' is not implemented yet!");
 							}
 						} else {
-							console.error("Triggers with operation '" + trigger.action + "' can only operate on a world state or send an event. Also it needs a value set in the condition.")
+							logger.error("Triggers with operation '" + trigger.action + "' can only operate on a world state or send an event. Also it needs a value set in the condition.")
 						}
 					}
 				}

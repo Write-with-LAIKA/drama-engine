@@ -2,6 +2,7 @@ import { Chat, ChatMessage } from "../chat";
 import { Context } from "../context";
 import { Drama } from "../drama";
 import { getRandomElement } from "../utils/array-utils";
+import { logger } from "../utils/logging-utils";
 import { AutoCompanion, CompanionReply } from "./auto-companion";
 import { Companion, CompanionConfig } from "./companion";
 import { Deputy } from "./deputy";
@@ -68,7 +69,7 @@ ${username}: A guest user in the chatroom.
 		const companions = chat.companions;
 		if (companions.length == 1) return [companions[0]];
 
-		console.log("Speaker selection");
+		logger.debug("In speaker selection");
 
 		const nextSpeaker = context.recipient;
 		if (nextSpeaker) {
@@ -91,8 +92,8 @@ ${username}: A guest user in the chatroom.
 		const speakers = (chat.allowRepeatSpeaker || lastSpeaker == undefined) ? allowedSpeakers : allowedSpeakers.filter(c => (lastSpeaker != undefined) && (c.id != lastSpeaker.id));
 		const you = chat.companions.find(c => c.configuration.kind == "user");
 
-		console.log("lastSpeaker: ", lastSpeaker);
-		console.log("allowedSpeakers: ", speakers);
+		logger.debug("lastSpeaker: ", lastSpeaker);
+		logger.debug("allowedSpeakers: ", speakers);
 
 		if (speakers.length == 1)
 			return [speakers[0]];
@@ -101,7 +102,7 @@ ${username}: A guest user in the chatroom.
 		if (chat.history.length > 0) {
 			const mentionedSpeakers = chat.mentionedCompanions(chat.history[chat.history.length - 1].message).filter(m => speakers.includes(m));
 			if (mentionedSpeakers.length > 0) {
-				console.log("mentionedSpeakers: ", mentionedSpeakers);
+				logger.debug("mentionedSpeakers: ", mentionedSpeakers);
 				// insert the person who mentioned someone after all the mentioned
 				return (lastSpeaker && !mentionedSpeakers.includes(lastSpeaker)) ? [lastSpeaker, ...mentionedSpeakers] : mentionedSpeakers;
 			}
@@ -112,8 +113,8 @@ ${username}: A guest user in the chatroom.
 				chat.speakerSelection == "random" ? getRandomElement(speakers) as AutoCompanion :
 					undefined;
 
-		console.log("speakerSelection: " + chat.speakerSelection)
-		selectedSpeaker && console.log("Next speaker: " + selectedSpeaker?.id)
+		logger.debug("speakerSelection: " + chat.speakerSelection)
+		selectedSpeaker && logger.debug("Next speaker: " + selectedSpeaker?.id)
 
 		if (selectedSpeaker) return [selectedSpeaker];
 
@@ -154,9 +155,9 @@ ${username}: A guest user in the chatroom.
 				const mentionedCompanions = chat.mentionedCompanions(jobResponse.response);
 
 				(mentionedCompanions.length > 0) ?
-					console.log("Auto speakers: " + mentionedCompanions.map(c => c.configuration.name).join(", "))
+					logger.debug("Auto speakers: " + mentionedCompanions.map(c => c.configuration.name).join(", "))
 					:
-					console.log("Auto speakers response: " + jobResponse.response);
+					logger.debug("Auto speakers response: " + jobResponse.response);
 
 				const allowedMentioned = mentionedCompanions.filter(c => speakers.includes(c));
 
@@ -164,7 +165,7 @@ ${username}: A guest user in the chatroom.
 			}
 
 		} catch (e) {
-			console.error(e);
+			logger.error(e);
 		}
 
 		// disabling repeat speakers because why would I want that?

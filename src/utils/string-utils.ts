@@ -1,4 +1,5 @@
 import { randomArrayElement } from "./array-utils";
+import { logger } from "./logging-utils";
 
 export const START_SENTENCES = [
 	"A screaming comes across the sky.",
@@ -83,9 +84,9 @@ export function getSelectionString(text: string, startPosition: number, endPosit
 	const hasSelection = (Math.abs(startPosition - endPosition) > 3); // we regard selections of more than 3 characters as valid
 
 	let finalString = "";
-	console.log("text: " + text);
-	// console.log("startPosition: " + startPosition);
-	// console.log("endPosition: " + endPosition);
+	logger.debug("text: " + text);
+	// logger.debug("startPosition: " + startPosition);
+	// logger.debug("endPosition: " + endPosition);
 
 	// fill up until it would go over 250 characters
 	let punctuationIndexLeft: number = startPosition;
@@ -97,13 +98,13 @@ export function getSelectionString(text: string, startPosition: number, endPosit
 		const lastSentence = text.substring(Math.max(0, punctuationIndexLeft), startPosition - finalString.length);
 		if (punctuationIndexLeft != Math.max(0, startPosition - maxCharacters)) {
 			finalString = lastSentence + finalString;
-			// console.log("--");
-			// console.log("remainingLeft: " + remainingLeft);
-			// console.log("remainingLeft length: " + (punctuationIndexLeft - Math.max(0, startPosition - maxCharacters)));
-			// console.log("lastSentenceLength: " + lastSentenceLength);
-			// console.log("punctuationIndexLeft: " + punctuationIndexLeft);
-			// console.log("Appending: " + lastSentence);
-			// console.log("String: " + finalString);
+			// logger.debug("--");
+			// logger.debug("remainingLeft: " + remainingLeft);
+			// logger.debug("remainingLeft length: " + (punctuationIndexLeft - Math.max(0, startPosition - maxCharacters)));
+			// logger.debug("lastSentenceLength: " + lastSentenceLength);
+			// logger.debug("punctuationIndexLeft: " + punctuationIndexLeft);
+			// logger.debug("Appending: " + lastSentence);
+			// logger.debug("String: " + finalString);
 
 			punctuationIndexLeft -= 1; // go one left
 			insurance--;
@@ -129,7 +130,7 @@ export function getSelectionString(text: string, startPosition: number, endPosit
 	finalString = finalString.replaceAll("  ", " ");
 	finalString = finalString.trim();
 
-	console.log("Result string: " + finalString);
+	logger.debug("Result string: " + finalString);
 
 	if (finalString.length == 0) finalString = "";
 
@@ -143,9 +144,9 @@ export function getSelectionStringOld(text: string, startPosition: number, endPo
 	const hasSelection = (Math.abs(startPosition - endPosition) > 3); // we regard selections of more than 3 characters as valid
 
 	let finalString = "";
-	// console.log("text: " + text);
-	// console.log("startPosition: " + startPosition);
-	// console.log("endPosition: " + endPosition);
+	// logger.debug("text: " + text);
+	// logger.debug("startPosition: " + startPosition);
+	// logger.debug("endPosition: " + endPosition);
 
 	// fill up until it would go over 250 characters
 	let punctuationIndexLeft: number = startPosition;
@@ -157,13 +158,13 @@ export function getSelectionStringOld(text: string, startPosition: number, endPo
 		const lastSentence = text.substring(Math.max(0, punctuationIndexLeft), startPosition - finalString.length);
 		if (punctuationIndexLeft != Math.max(0, startPosition - maxCharacters)) {
 			finalString = lastSentence + finalString;
-			// console.log("--");
-			// console.log("remainingLeft: " + remainingLeft);
-			// console.log("remainingLeft length: " + (punctuationIndexLeft - Math.max(0, startPosition - maxCharacters)));
-			// console.log("lastSentenceLength: " + lastSentenceLength);
-			// console.log("punctuationIndexLeft: " + punctuationIndexLeft);
-			// console.log("Appending: " + lastSentence);
-			// console.log("String: " + finalString);
+			// logger.debug("--");
+			// logger.debug("remainingLeft: " + remainingLeft);
+			// logger.debug("remainingLeft length: " + (punctuationIndexLeft - Math.max(0, startPosition - maxCharacters)));
+			// logger.debug("lastSentenceLength: " + lastSentenceLength);
+			// logger.debug("punctuationIndexLeft: " + punctuationIndexLeft);
+			// logger.debug("Appending: " + lastSentence);
+			// logger.debug("String: " + finalString);
 
 			punctuationIndexLeft -= 1; // go one left
 			insurance--;
@@ -184,11 +185,11 @@ export function getSelectionStringOld(text: string, startPosition: number, endPo
 		hasSelection ? endPosition :
 			Math.min(Math.max(punctuationIndexRight, endPosition), text.length); // take the one point further right
 
-	// console.log("Left string: " + (text && ));
-	// console.log("Right string: " + (text && text.substring(startPosition, endIndex)));
-	// console.log("Position " + startPosition + " -- " + endPosition);
-	// console.log("Punctuation: " + punctuationIndexLeft + " -- " + punctuationIndexRight);
-	// console.log("Indices " + startIndex + " -- " + endIndex);
+	// logger.debug("Left string: " + (text && ));
+	// logger.debug("Right string: " + (text && text.substring(startPosition, endIndex)));
+	// logger.debug("Position " + startPosition + " -- " + endPosition);
+	// logger.debug("Punctuation: " + punctuationIndexLeft + " -- " + punctuationIndexRight);
+	// logger.debug("Indices " + startIndex + " -- " + endIndex);
 
 	// This works but there are still edge cases where the selection could be >=250 characters and start in hte middle of a word.
 	// If it's too long we cut in the calling function anyway, so all good.
@@ -199,7 +200,7 @@ export function getSelectionStringOld(text: string, startPosition: number, endPo
 	finalString = finalString.replaceAll("  ", " ");
 	finalString = finalString.trim();
 
-	console.log("Result string: " + finalString);
+	logger.debug("Result string: " + finalString);
 
 	if (finalString.length == 0) finalString = "";
 
@@ -262,7 +263,7 @@ export function cleanText(text: string): string {
 		.replace(/[^\S\r\n]{2,}/g, " ")          // replace 2 or more whitespaces (except newlines) with a single one, ref: https://stackoverflow.com/a/45046733
 		;
 
-	// console.log(cleanedText)  
+	// logger.debug(cleanedText)
 	return cleanedText;
 }
 
@@ -276,7 +277,7 @@ export function cleanTextMinimal(text: string): string {
 		// .replaceAll(/[^\S\r\n]{2,}/g, " ")          // replace 2 or more whitespaces (except newlines) with a single one, ref: https://stackoverflow.com/a/45046733
 		;
 
-	// console.log(cleanedText)  
+	// logger.debug(cleanedText)
 	return cleanedText;
 }
 
@@ -290,8 +291,8 @@ export function cleanSnippet(text: string, minLength: number = 20, maintainNewli
 		cleanedText = cleanedText.substring(0, lastPunctuationIndex);
 	}
 
-	// console.log("string: " + cleanedText);
-	// console.log("last character: " + cleanedText[cleanedText.length - 1]);
+	// logger.debug("string: " + cleanedText);
+	// logger.debug("last character: " + cleanedText[cleanedText.length - 1]);
 
 	if (countDoubleQuotes(cleanedText) % 2 != 0 && isCutoffSign(cleanedText[cleanedText.length - 1])) return cleanedText + "\""; // add a " character if we have an uneven number of quotation marks
 
@@ -316,7 +317,7 @@ export const deGutenberg = (text: string) => {
 			if (line.startsWith("***START OF") || line.startsWith("*** START OF")) startIndex = index + line.length + lineIndex * 2; // include current line and the newlines (via lineIndex)
 			index += line.length;
 		})
-		console.log("Gutenbook of " + index + " characters (" + lines.length + " lines)! Keeping from " + startIndex + " to " + endIndex);
+		logger.debug("Gutenbook of " + index + " characters (" + lines.length + " lines)! Keeping from " + startIndex + " to " + endIndex);
 		return text.substring(startIndex, endIndex);
 	}
 	return text;
@@ -329,7 +330,7 @@ A paragraph has 200-300 words on average (= 940-1410 characters)
 A page has 2000 characters on average
  */
 
-const shortenText = (text: string, length: number) => { 
+const shortenText = (text: string, length: number) => {
 	const startIndex = text.length - length;
 	if (startIndex < 0) return text;
 
@@ -352,18 +353,18 @@ export const getLastParagraph = (document: string) => {
 
 export const getLastSentence = (document: string) => {
 	const trimmedDocument = cleanText(document.trim());
-	
+
 	if (trimmedDocument.length <= 70) return trimmedDocument.trim();
 
 	const lastStopSign = getLastStopSign(trimmedDocument.substring(0, trimmedDocument.length - 3)) + 1;
 	if (lastStopSign >= 0 && lastStopSign < trimmedDocument.length) return trimmedDocument.substring(lastStopSign).trim();
-	
+
 	return trimmedDocument.substring(trimmedDocument.length - 70).trim();
 }
 
-export const getRandomParagraph = (document: string) => { 	
+export const getRandomParagraph = (document: string) => {
 	if (document.length <= 1000) return document;
-	
+
 	const paragraphs = cleanText(document).split("\n");
 	if (paragraphs.length < 2) return getLastParagraph(document);
 	const selectedParagraph = randomArrayElement(paragraphs);

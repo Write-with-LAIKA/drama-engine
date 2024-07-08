@@ -1,6 +1,7 @@
 import { AutoCompanion } from "./companions/auto-companion";
-import { Companion, CompanionConfig } from "./companions/companion";
+import { CompanionConfig } from "./companions/companion";
 import { JobResponse } from "./model";
+import { logger } from "./utils/logging-utils";
 
 export type ContextDataTypes =
 	// everywhere
@@ -138,22 +139,22 @@ export class Context {
 		const action = this.findActionConfiguration(configuration);
 		const answer = this.hasAnswer();
 
-		console.log("ACTION: " + action?.id);
-		console.log("ANSWER: " + answer);
+		logger.debug("ACTION: " + action?.id);
+		logger.debug("ANSWER: " + answer);
 
 		// reply with deputy if there's an action but there's no answer yet. This will delegate the action.
 		if (action && !answer) {
 			const deputy = companions.find(c => c.id == action.deputy);
 
-			console.log("Action " + action.id + " => " + deputy + " found.");
+			logger.debug("Action " + action.id + " => " + deputy + " found.");
 
 			if (deputy) {
 				// the deputy sets the next speaker
 				return deputy;
 			} else {
-				console.info("Deputy " + action.deputy + " not found.");
+				logger.debug("Deputy " + action.deputy + " not found.");
 
-				console.info(companions)
+				logger.debug(companions)
 			}
 		}
 		return undefined;

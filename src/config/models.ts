@@ -9,7 +9,7 @@ NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO	32768	=> 120k characters (<4 letter 
 1 token is ~4 characters.
 */
 
-import { defaultPromptConfig, defaultPromptTemplates } from "./prompt-config";
+import { defaultPromptConfig, defaultPromptTemplates } from "./prompts";
 
 export type ModelConfig = typeof defaultModelConfig;
 
