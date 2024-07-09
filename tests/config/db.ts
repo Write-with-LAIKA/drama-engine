@@ -14,7 +14,7 @@ export class InMemoryDatabase implements Database {
         this.chatEntries = {};
     }
 
-    async setCompanions(companions: Companion[]): Promise<void> {
+    async initCompanionStats(companions: Companion[]): Promise<void> {
         this.companions = companions;
     }
 
@@ -46,7 +46,7 @@ export class InMemoryDatabase implements Database {
         delete this.chatEntries[chatID];
     }
 
-    async logChat(id: string, history: ChatMessage[]): Promise<string> {
+    async writeChat(id: string, history: ChatMessage[]): Promise<string> {
         this.chatEntries[id] = {
             id: id,
             history: history.filter(h => h.companion.configuration.kind == "npc" || h.companion.configuration.kind == "user").map(h => { return { companion: h.companion.configuration.name, message: h.message, timeStamp: h.timeStamp } })
@@ -54,7 +54,7 @@ export class InMemoryDatabase implements Database {
         return id;
     }
 
-    async addChatEntry(items: ChatRecord): Promise<string> {
+    async overwriteChats(items: ChatRecord): Promise<string> {
         this.chatEntries[items.id] = items;
         return items.id;
     }

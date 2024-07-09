@@ -15,21 +15,69 @@ export type ChatRecord = { id: string, history: HistoryRecord[], default?: boole
  * @export
  * @interface Database
  */
-export interface Database { 
+export interface Database {
+	/**
+	 * Resets the database by clearing all data and repopulating with default data.
+	 */
 	reset(): Promise<void>;
-	
-	setCompanions(companions: Companion[]): Promise<void>;
 
+	/**
+	 * Initialises the various stats for each companion, e.g., interaction counts, in the database.
+	 * @param {Companion[]} companions
+	 */
+	initCompanionStats(companions: Companion[]): Promise<void>;
+
+	/**
+	 * Returns the current world state (consisting of stats, config, etc.) in the form of a key-value pair array.
+	 */
 	world(): Promise<KeyValueRecord[]>;
+
+	/**
+	 * Inserts or updates the current world state at given `key` with `value`.
+	 * @param {string} key
+	 * @param {StateTypes} value
+	 */
 	setWorldStateEntry(key: string, value: StateTypes): Promise<void>;
-	
+
+	/**
+	 * Returns the saved prompt records (full prompts sent to LLM, response received, etc.) in the form of an array.
+	 */
 	prompts(): Promise<PromptRecord[]>;
+
+	/**
+	 * Adds an entry to the prompts store.
+	 * @param {PromptRecord} record
+	 */
 	addPromptEntry(record: PromptRecord): Promise<void>;
 
+	/**
+	 * Returns all the chats in the database.
+	 */
 	chats(): Promise<ChatRecord[]>;
-	getChat(chatID: string): Promise<ChatRecord | undefined>;
-	deleteChat(chatID: string): Promise<void>;
-	logChat(id: string, history: ChatMessage[]): Promise<string>;
-	addChatEntry(items: ChatRecord): Promise<string>;
 
+	/**
+	 * Returns the chat for a given `chatID`.
+	 * @param {string} chatID
+	 */
+	getChat(chatID: string): Promise<ChatRecord | undefined>;
+
+	/**
+	 * Deletes the chat for a given `chatID`.
+	 * @param {string} chatID
+	 */
+	deleteChat(chatID: string): Promise<void>;
+
+	/**
+	 * Adds a new entry to the chat store updating the history of the given chat `id`.
+	 * The objects might need to be serialised before persisting.
+	 * @param {string} id
+	 * @param {ChatMessage[]} history
+	 */
+	writeChat(id: string, history: ChatMessage[]): Promise<string>;
+
+	/**
+	 * Overwrites chat history with provided data. Useful when restoring sessions from scratch.
+	 * @param {ChatRecord} items
+	 */
+	overwriteChats(items: ChatRecord): Promise<string>;
 }

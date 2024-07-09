@@ -121,7 +121,7 @@ export class Drama {
 
 		this.jobs = [];
 		await this.database.reset();
-		await this.database.setCompanions(this.companions);
+		await this.database.initCompanionStats(this.companions);
 	}
 
 	/* WORLD STATE MANAGEMENT */
@@ -257,7 +257,7 @@ export class Drama {
 	/* CHATS */
 
 	restoreChats = (chatRecords?: ChatRecord[]) => {
-		chatRecords?.forEach(async (chatRecord) => await this.database.addChatEntry(chatRecord));
+		chatRecords?.forEach(async (chatRecord) => await this.database.overwriteChats(chatRecord));
 		this.chats.forEach(async (chat) => {
 			let chatRecord: ChatRecord | undefined;
 
@@ -386,7 +386,7 @@ export class Drama {
 			} else {
 				// active speaker is user -> return control
 				// await db.logChat(chat.id, chat.history);
-				await this.database.logChat(chat.id, chat.history);
+				await this.database.writeChat(chat.id, chat.history);
 				await this.syncInteractions();
 
 				context = await this.runTriggers(context, callback);
@@ -395,7 +395,7 @@ export class Drama {
 			}
 		}
 
-		await this.database.logChat(chat.id, chat.history);
+		await this.database.writeChat(chat.id, chat.history);
 		await this.syncInteractions();
 
 		context = await this.runTriggers(context, callback);
