@@ -33,10 +33,11 @@ export type CompanionConfig = {
 	situations?: { id: string, prompt: string }[],
 	knowledge?: ConditionalLine[],
 	mottos?: ConditionalLine[],
-	
+
 	actions?: ActionDescription[],
 	triggers?: TriggerDescription[],
-	
+
+	modelConfig?: ModelConfig,
 	temperature?: number,
 
 	scope?: CompanionScope;
@@ -46,7 +47,7 @@ export abstract class Companion {
 	id: string;
 	configuration: CompanionConfig;
 	status: CompanionState;
-	modelConfig?: ModelConfig = undefined;
+	modelConfig?: ModelConfig;
 
 	// statistics
 	interactions: number;
@@ -62,9 +63,10 @@ export abstract class Companion {
 		this.interactions = 0;
 		this.actions = 0;
 		this.status = "active";
+		this.modelConfig = configuration.modelConfig || defaultModelConfig;
 
-		if (configuration.temperature) { 
-			this.modelConfig = { ...defaultModelConfig, temperature: configuration.temperature }
+		if (configuration.temperature) {
+			this.modelConfig.temperature = configuration.temperature;
 		}
 
 		return this;
@@ -83,7 +85,7 @@ export abstract class Companion {
 		const userName = drama.getWorldStateValue("USERNAME");
 		if (userName)
 			return randomArrayElement<string>(this.getMottosByEvent(event, drama)).replace("{{USERNAME}}", userName as string) || "";
-		else 
+		else
 			return randomArrayElement<string>(this.getMottosByEvent(event, drama)) || "";
 	}
 

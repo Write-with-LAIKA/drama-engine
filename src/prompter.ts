@@ -231,13 +231,12 @@ export class Prompter {
 
 		const name = "assistant"; //companion.configuration.kind == "shell" ? "assistant" : companion.id;
 
-		let template = undefined;
-		if (promptTemplate) {
-			template = new Template(promptTemplate.chat_template);
-		}
+		// If a template is provided, use that
+		// Else, check if the companion uses a different model/template
+		// Else, use the default template
+		let template = promptTemplate?.chat_template || companion.modelConfig?.extra?.template?.chat_template;
 
-		return this.renderPrompt(name, cleaned_chat, template);
-
+		return this.renderPrompt(name, cleaned_chat, template ? new Template(template) : undefined);
 	}
 
 
