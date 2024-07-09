@@ -17,7 +17,7 @@ The Drama Engine is a framework for agentic interaction with language models. It
 
 At the heart of the drama engine are different kinds of companions and their orchestration. Some companions are agents that simulate a personality. They can change over time and interact with each other. These companions use deputies to run ad-hoc chains of prompts that allow for a mix of different prompting techniques. A deputy might use a few-shot prompt to an instruction-tuned model while its host companion talks to the user by calling a chat-tuned model. This way, dynamic sequences of prompting (e.g. text summary, but only if the text is too long -> text analysis -> discussion about the analysis) can be configured in a modular way. The resulting system is far more flexible than prompt chains.
 
-## Usage
+## Installation
 
 Install using your favourite package manager:
 
@@ -25,11 +25,46 @@ Install using your favourite package manager:
 npm i @write-with-laika/drama-engine
 ```
 
+## Configuration
+
+### Environment variables
+
+The library is provider agnostic as long as the LLM service you are using support the OpenAI API standard.
+As of this writing, the library only supports the `/v1/completions` endpoint and not the chat `/v1/chat/completions` endpoint as it requires a different request payload.
+
+The possible environment variables are:
+- `DE_BASE_URL` - The base url for the provider. Default: `<empty>`
+- `DE_ENDPOINT_URL` - The endpoint for the provider. Default: `/v1/completions`
+- `DE_BACKEND_API_KEY` - The API key for the provider. If provided, all requests will include `Bearer: <DE_BACKEND_API_KEY>` in the `Authentication` header. Default: `<empty>`
+- `DE_LOG_LEVEL` - The log level for the provider. Default: `info`
+
+Please refer to the commented `env.template` for more details. You can copy this as `.env` and use the library.
+
+NOTE: Depending on your provider backend, CORS might be required. The library does not handle these.
+
+Additionally, if you are using this library publicly and client-side, it's recommended to handle the requests in a middleware service such as Cloudflare, Vercel, etc. so that the API key is not exposed to the client. This library does not differentiate between server-side and client-side usage, so you should handle this appropriately.
+
+### Database
+
+This library was developed to power our live product, [Writers Room](https://wr.writewithlaika.com), where we utilise the browsers IndexedDB API to store and manage states and data.
+
+When we decided to open source this package, we realised we needed to ship this with a generic database interface to manage the data. Therefore, we provide a minimal database interface which you can extend with your own functions. Have a look at `./tests/config/db.ts` for an example of an in-memory database.
+
+If you believe the interface can be improved, we welcome your contributions or feel free to reach out to us.
+
+## Tests
+
+A sample test suite is provided under `./tests/drama.test.ts` that can be run via `npm run test`. Ensure you have all the dev dependencies installed.
+
+Please refer to the test implementations for usage examples.
+
+## Usage
+
 Set up a `Drama` and instantiate chats:
 
 ```javascript
 
-const d = await Drama.initialize("writersroom", writersroomCompanionConfigs, apiClient, 
+const d = await Drama.initialize("writersroom", writersroomCompanionConfigs, apiClient,
   new DramaEngineDatabaseInterface(), {
   headers: {
     Accept: 'application/json'
@@ -44,7 +79,7 @@ d.addChat("fireplace", "fireplace", [...d.companions.filter(c => c.configuration
 Append a user message to a chat:
 
 ```javascript
-  
+
 const you = participants && participants['you'];
 you && chat.appendMessage(you, message);
 callback && callback(chat);
@@ -78,8 +113,6 @@ You never write more than two sentences per response.
 If you do not know something, you will say so rather than inventing an answer.
 You will not make any plans with the user, and you will not agree to any plans suggested by the user.`
   }],
-
-  avatar: "/img/avatar-anders.png",
   kind: "npc"
 }
 ```
