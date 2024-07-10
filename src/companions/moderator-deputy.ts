@@ -138,10 +138,10 @@ ${username}: A guest user in the chatroom.
 			]);
 
 		// use our own prompter. make the context short because we only want to send the last part of the dialog
-		const prompt = chat.drama.prompter.assemblePrompt(this,
-			chat.drama.worldState, newContext);
+		const input = chat.drama.prompter.assemblePrompt(this,
+			chat.drama.worldState, newContext, undefined, undefined, undefined, undefined, this.drama.chatMode);
 
-		const job = this.newDeputyJob(prompt, newContext);
+		const job = this.newDeputyJob(input, newContext);
 		// if (job.modelConfig) {
 		// 	job.modelConfig.max_tokens = 25;
 		// 	job.modelConfig.temperature = 0.2;

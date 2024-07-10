@@ -1,9 +1,10 @@
 import { ChatMessage } from "./chat";
 import { Companion } from "./companions/companion";
+import { Messages } from "./model";
 
 export type StateTypes = number | string | boolean;
 export type KeyValueRecord = { key: string, value: StateTypes }
-export type PromptRecord = { timeStamp: number, prompt: string, result: string, config: string }
+export type PromptRecord = { timeStamp: number, prompt: string, result: string, config: string, messages?: Messages }
 export type HistoryRecord = { companion: string, message: string, timeStamp: number }
 export type ChatRecord = { id: string, history: HistoryRecord[], default?: boolean };
 

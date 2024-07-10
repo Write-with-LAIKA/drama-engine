@@ -30,3 +30,8 @@ export const testModelConfig = {
         promptConfig: defaultPromptConfig,
     }
 }
+
+export const streamingModelConfig = {
+    ...testModelConfig,
+    stream: true,
+}

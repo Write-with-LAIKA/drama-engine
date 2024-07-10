@@ -22,14 +22,20 @@ export interface JobResponse {
 	// runtime: number | undefined;
 }
 
+export type Messages = {
+	role: string,
+	content: string,
+}[];
+
 type OptionalPropsType<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 type GenerationParams = OptionalPropsType<ModelConfig, 'extra'>;
 interface RequestPayload extends GenerationParams {
-	prompt: string,
+	prompt?: string,
+	messages?: Messages,
 	preset?: string,
 	chat_id?: string,
 	situation_id?: string,
-	interaction_id?: string
+	interaction_id?: string,
 }
 
 /**
@@ -105,7 +111,7 @@ export class Model {
 		try {
 			const jobResponse: JobResponse = {
 				id: jsonResponse.id, // job_id
-				response: jsonResponse.choices[0]?.text, // generated text - change this if n > 1 in inference params
+				response: jsonResponse.response || jsonResponse.choices[0]?.text || jsonResponse.choices[0]?.message?.content, // generated text - change this if n > 1 in inference params
 				input_tokens: jsonResponse.usage?.prompt_tokens, // runtime of the request
 				output_tokens: jsonResponse.usage?.completion_tokens, // runtime of the request
 
@@ -225,10 +231,11 @@ export class Model {
 
 		const presetAction = job.context.action;
 
-		if (!job.prompt) throw new ModelError("Can not run inference", "No prompt found", job);
+		if (!(job.prompt || job.messages)) throw new ModelError("Can not run inference", "No prompt or messages array found.", job);
 
 		const postData: RequestPayload = {
 			prompt: job.prompt,
+			messages: job.messages,
 			preset: presetAction,
 			chat_id: job.context.chatID,
 			situation_id: job.context.situation,

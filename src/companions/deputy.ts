@@ -3,6 +3,7 @@ import { largeContextModelConfig } from "../config/models";
 import { Context } from "../context";
 import { Drama } from "../drama";
 import { Job } from "../job";
+import { Messages } from "../model";
 import { logger } from "../utils/logging-utils";
 import { cleanText, findCut, getLastParagraph, getLastSentence, getRandomParagraph } from "../utils/string-utils";
 import { AutoCompanion, CompanionReply } from "./auto-companion";
@@ -50,17 +51,19 @@ export abstract class Deputy extends AutoCompanion {
 
 	protected abstract runAction(chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion): Promise<CompanionReply>;
 
-	protected newDeputyJob = (prompt: string, context?: Context, situation?: string) => {
+	protected newDeputyJob = (input?: string | Messages, context?: Context, situation?: string) => {
 		const newContext: Context = context || new Context(this, [], "", situation || "deputy", []);
+
+		const inputData = { prompt: typeof input === "string" ? input : undefined, messages: typeof input !== "string" ? input : undefined };
 
 		const job: Job = {
 			id: "internal",
 			remoteID: "",
 			status: "new",
 			modelConfig: this.modelConfig,
-			prompt: prompt,
 			context: newContext,
-			timeStamp: Date.now()
+			timeStamp: Date.now(),
+			...inputData,
 		}
 
 		return job;
@@ -166,13 +169,14 @@ export abstract class Deputy extends AutoCompanion {
 		// 	undefined,
 		// 	{ max_prompt_length: 100000, job_in_chat: true });
 
-		const prompt = chat.drama.prompter.assemblePrompt(this, chat.drama.worldState, { ...tempContext, input: trimmedDocument },
+		const input = chat.drama.prompter.assemblePrompt(this, chat.drama.worldState, { ...tempContext, input: trimmedDocument },
 			undefined,
 			undefined,
 			largeContextModelConfig.extra.promptConfig,
-			(trimmedDocument.length > 30000) ? largeContextModelConfig.extra.template : undefined);
+			(trimmedDocument.length > 30000) ? largeContextModelConfig.extra.template : undefined,
+			this.drama.chatMode);
 
-		const job = this.newDeputyJob(prompt, tempContext);
+		const job = this.newDeputyJob(input, tempContext);
 
 		// large model needed
 		if (trimmedDocument.length > 30000) {

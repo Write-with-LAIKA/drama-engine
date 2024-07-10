@@ -63,14 +63,14 @@ export class AutoCompanion extends Companion {
 		const deputyDecorators = context && sender && (sender as Deputy)?.decorators;
 		
 		const newContext: Context = context || new Context(this, chat.companions, chat.id, chat.situation, []);
-		const prompt = chat.drama.getPrompt(this, chat.history, context, deputyDecorators);
+		const input = chat.drama.getInput(this, chat.history, context, deputyDecorators);
 
 		const job: Job = {
 			id: "internal",
 			remoteID: "",
 			status: "new",
-			modelConfig: this.modelConfig,
-			prompt: prompt,
+			prompt: typeof input === "string" ? input : undefined,
+			messages: typeof input !== "string" ? input : undefined,
 			context: newContext,
 			timeStamp: Date.now()
 		}

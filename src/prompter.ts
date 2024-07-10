@@ -8,6 +8,7 @@ import { KeyValueRecord } from "./database";
 import { getRandomElement } from "./utils/array-utils";
 import { logger } from "./utils/logging-utils";
 import { unixTimestampToDate } from "./utils/time-utils";
+import { Messages } from "./model";
 
 /**
  * A simple wrapper to make it possible to append text if and only if the text is not undefined. Separator between old
@@ -124,7 +125,7 @@ export class Prompter {
 	 * @param {ContextDecorator[]} [decorators=[]]
 	 * @param {PromptConfig} [config=defaultPromptConfig]
 	 * @param {PromptTemplate} [promptTemplate]
-	 * @return {*}
+	 * @param {returnChat} [returnChat]
 	 */
 	assemblePrompt = (companion: Companion,
 		worldState: KeyValueRecord[],
@@ -132,7 +133,8 @@ export class Prompter {
 		history?: ChatMessage[],
 		decorators: ContextDecorator[] = [],	// eventual additional decorators
 		config: PromptConfig = defaultPromptConfig,
-		promptTemplate?: PromptTemplate) => {
+		promptTemplate?: PromptTemplate,
+		returnChat: boolean = false): string | Messages => {
 
 		let tags: string[] = [];
 		companion.configuration.knowledge && companion.configuration.knowledge
@@ -201,9 +203,9 @@ export class Prompter {
 				.forEach(line => chat.push(
 					{
 						role: (line.companion.id == "you") ?
-							((username && typeof (username) == "string") ? username : 'user')
+							((!returnChat && username && typeof (username) == "string") ? username : 'user')
 							:
-							((line.companion.id == companion.id) ? "assistant" : line.companion.configuration.name),
+							((line.companion.id == companion.id) ? "assistant" : !returnChat ? line.companion.configuration.name : "user"),
 						content: this.sanitize(line.message)
 					}));
 
@@ -227,6 +229,10 @@ export class Prompter {
 		const job = context.job;
 		if (config.job_in_chat && job) {
 			cleaned_chat.push({ role: "user", content: this.sanitize(job) })
+		}
+
+		if (returnChat) {
+			return cleaned_chat;
 		}
 
 		const name = "assistant"; //companion.configuration.kind == "shell" ? "assistant" : companion.id;

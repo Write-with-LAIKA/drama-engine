@@ -19,6 +19,7 @@ export class Drama {
 	database: Database;
 	additionalOptions?: Options;
 	prompter: Prompter;
+	chatMode: boolean;
 
 	companions: AutoCompanion[] = [];
 	worldState: KeyValueRecord[] = [];
@@ -31,13 +32,12 @@ export class Drama {
 		worldState: KeyValueRecord[],
 		kyInstance: KyInstance,
 		additionalOptions?: Options,
+		chatModeOverride?: boolean,
 	) {
 		this.worldState = worldState;
 
 		const apiEndpoint = process.env.DE_ENDPOINT_URL || process.env.NEXT_PUBLIC_DE_ENDPOINT_URL || 'v1/completions';
-		if (apiEndpoint.includes('/chat/completions')) {
-			logger.error("NOTICE: Chat completion endpoint detected. This chat format has not yet been implemented. Nothing is likely to work.");
-		}
+		this.chatMode = chatModeOverride === undefined ? apiEndpoint.includes('chat/completions') : chatModeOverride;
 
 		this.model = new Model(apiEndpoint);
 		this.prompter = new Prompter(this.model.promptTemplate);
@@ -56,6 +56,7 @@ export class Drama {
 		kyInstance: KyInstance = ky,
 		database: Database,
 		additionalOptions?: Options,
+		chatModeOverride?: boolean,
 	) {
 		const worldState = await database.world() || [];
 
@@ -74,7 +75,7 @@ export class Drama {
 				},
 			];
 
-		const drama = new Drama(companionConfigs, database, worldState, kyInstance, additionalOptions);
+		const drama = new Drama(companionConfigs, database, worldState, kyInstance, additionalOptions, chatModeOverride);
 
 		// load interactions counters
 		drama.companions.forEach(companion => {
@@ -226,8 +227,8 @@ export class Drama {
 
 	/* PROMPT */
 
-	getPrompt = (companion: Companion, history: ChatMessage[], context: Context, decorators: ContextDecorator[] = [], config: PromptConfig = this.model.promptConfig) => {
-		return this.prompter.assemblePrompt(companion, this.worldState, context, history, decorators, config);
+	getInput = (companion: Companion, history: ChatMessage[], context: Context, decorators: ContextDecorator[] = [], config: PromptConfig = this.model.promptConfig) => {
+		return this.prompter.assemblePrompt(companion, this.worldState, context, history, decorators, config, undefined, this.chatMode);
 	}
 
 	/* INFERENCES */
@@ -247,6 +248,7 @@ export class Drama {
 		await this.database.addPromptEntry({
 			timeStamp: Date.now(),
 			prompt: job.prompt || "No prompt found",
+			messages: job.messages,
 			result: response?.response || "NONE",
 			config: JSON.stringify(job.modelConfig)
 		})
