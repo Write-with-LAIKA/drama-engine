@@ -9,6 +9,7 @@ export { Deputy } from "./companions/deputy";
 export { InstructionDeputy } from "./companions/instruction-deputy";
 export { TestDeputy } from "./companions/test-deputy";
 export type { Category, Condition, ConditionalLine, Tag } from "./conditions";
+export { defaultModelConfig } from "./config/models";
 export type { ModelConfig } from "./config/models";
 export { defaultPromptConfig, defaultPromptTemplates } from "./config/prompts";
 export { Context } from "./context";

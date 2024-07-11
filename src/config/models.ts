@@ -33,6 +33,7 @@ export const defaultModelConfig = {
 	ignore_eos: false,
 	skip_special_tokens: true,
 	spaces_between_special_tokens: true,
+	stream: false,
 
 	extra: {
 		template: defaultPromptTemplates.chatml,
@@ -41,26 +42,10 @@ export const defaultModelConfig = {
 }
 
 export const largeContextModelConfig = {
+	...defaultModelConfig,
+
 	model: 'mistralai/Mixtral-8x7B-Instruct-v0.1', //'NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO',
-	n: 1,
-	presence_penalty: 0,
-	frequency_penalty: 0,
-	repetition_penalty: 1.2,
-
-	temperature: 0.93,
 	max_tokens: 512,
-	top_p: 0.93,
-	top_k: 4,
-	// min_p: 0.05,
-
-	stop: "",
-	stop_token_ids: [
-		0
-	],
-	ignore_eos: false,
-	skip_special_tokens: true,
-	spaces_between_special_tokens: true,
-
 	extra: {
 		template: defaultPromptTemplates.mistral,
 		promptConfig: {

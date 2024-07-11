@@ -1,25 +1,11 @@
-import { defaultPromptConfig } from "../../src";
+import { defaultModelConfig, defaultPromptConfig } from "../../src";
 
 export const testModelConfig = {
-    model: 'meta-llama/Llama-3-8b-chat-hf',
-    n: 1,
-    presence_penalty: 0,
-    frequency_penalty: 0,
-    repetition_penalty: 1.2,
+    ...defaultModelConfig,
 
+    model: 'meta-llama/Llama-3-8b-chat-hf',
     temperature: 1.1,
     max_tokens: 256,
-    top_p: 0.93,
-    top_k: 4,
-
-    stop: "",
-    stop_token_ids: [
-        0
-    ],
-    ignore_eos: false,
-    skip_special_tokens: true,
-    spaces_between_special_tokens: true,
-
     extra: {
         template: {
             bos_token: "<|begin_of_text|>",
@@ -32,6 +18,6 @@ export const testModelConfig = {
 }
 
 export const streamingModelConfig = {
-    ...testModelConfig,
+    ...defaultModelConfig,
     stream: true,
 }
