@@ -37,7 +37,7 @@ export class AutoCompanion extends Companion {
 	registerReply = (trigger: ReplyTriggerTypes | ReplyTriggerTypes[], replyFunction: ReplyFunctionAsync, front: boolean = false) => {
 		if (front) { // prepend
 			this.replyFunctions = [{ trigger: trigger, replyFunction: replyFunction }, ...this.replyFunctions];
-		} else { // append			
+		} else { // append
 			this.replyFunctions.push({ trigger: trigger, replyFunction: replyFunction })
 		}
 	}
@@ -49,7 +49,7 @@ export class AutoCompanion extends Companion {
 				const [final, newContext] = await replyFunction.replyFunction(chat, context, this, sender);
 				if (final) {
 					return newContext || context;
-				} else { 
+				} else {
 					if (newContext)
 						context = newContext;
 				}
@@ -61,7 +61,7 @@ export class AutoCompanion extends Companion {
 
 	runInference = async (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion): Promise<CompanionReply> => {
 		const deputyDecorators = context && sender && (sender as Deputy)?.decorators;
-		
+
 		const newContext: Context = context || new Context(this, chat.companions, chat.id, chat.situation, []);
 		const input = chat.drama.getInput(this, chat.history, context, deputyDecorators);
 
@@ -69,6 +69,7 @@ export class AutoCompanion extends Companion {
 			id: "internal",
 			remoteID: "",
 			status: "new",
+			modelConfig: this.configuration.modelConfig,
 			prompt: typeof input === "string" ? input : undefined,
 			messages: typeof input !== "string" ? input : undefined,
 			context: newContext,
@@ -77,7 +78,7 @@ export class AutoCompanion extends Companion {
 
 		const jobResponse = await chat.drama.runJob(job);
 
-		if (jobResponse && jobResponse.response) { 
+		if (jobResponse && jobResponse.response) {
 			job.context.message = jobResponse.response;
 			return [true, job.context];
 		}

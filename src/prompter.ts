@@ -240,7 +240,7 @@ export class Prompter {
 		// If a template is provided, use that
 		// Else, check if the companion uses a different model/template
 		// Else, use the default template
-		let template = promptTemplate?.chat_template || companion.modelConfig?.extra?.template?.chat_template;
+		let template = promptTemplate?.chat_template || companion.configuration.modelConfig?.extra?.template?.chat_template;
 
 		return this.renderPrompt(name, cleaned_chat, template ? new Template(template) : undefined);
 	}

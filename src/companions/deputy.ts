@@ -60,7 +60,7 @@ export abstract class Deputy extends AutoCompanion {
 			id: "internal",
 			remoteID: "",
 			status: "new",
-			modelConfig: this.modelConfig,
+			modelConfig: this.configuration.modelConfig,
 			context: newContext,
 			timeStamp: Date.now(),
 			...inputData,

@@ -47,7 +47,6 @@ export abstract class Companion {
 	id: string;
 	configuration: CompanionConfig;
 	status: CompanionState;
-	modelConfig?: ModelConfig;
 
 	// statistics
 	interactions: number;
@@ -63,10 +62,10 @@ export abstract class Companion {
 		this.interactions = 0;
 		this.actions = 0;
 		this.status = "active";
-		this.modelConfig = configuration.modelConfig || defaultModelConfig;
+		this.configuration.modelConfig = configuration.modelConfig || defaultModelConfig;
 
 		if (configuration.temperature) {
-			this.modelConfig.temperature = configuration.temperature;
+			this.configuration.modelConfig.temperature = configuration.temperature;
 		}
 
 		return this;
