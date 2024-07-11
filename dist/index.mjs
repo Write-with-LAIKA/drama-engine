@@ -1,256 +1,21 @@
-// src/drama.ts
-import { v4 as uuidv4 } from "uuid";
-
-// src/prompt-config.ts
-var defaultPromptConfig = {
-  max_prompt_length: 1024 * 3 * 4,
-  job_in_chat: false,
-  system_role_allowed: true
+// src/utils/logging-utils.ts
+var LOG_LEVEL = (process.env.DE_LOG_LEVEL || process.env.NEXT_PUBLIC_DE_LOG_LEVEL || "info").toLowerCase();
+if (!["info", "error", "warning", "debug", "off"].includes(LOG_LEVEL)) {
+  throw new Error(`Undefined log level: ${LOG_LEVEL}`);
+}
+var shouldLog = (level) => {
+  return level === LOG_LEVEL || LOG_LEVEL === "debug";
 };
-var defaultPromptTemplates = {
-  "mistral": {
-    bos_token: "<s>",
-    eos_token: "</s>",
-    unk_token: "<unk>",
-    chat_template: "{{ bos_token }}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ '[INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ message['content'] + eos_token + ' ' }}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+var logger = {
+  info: shouldLog("info") ? console.info : () => {
   },
-  "chatml": {
-    bos_token: "<s>",
-    eos_token: "<|im_end|>",
-    unk_token: "<unk>",
-    chat_template: "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}<|im_start|>{{ speaker }}\n"
+  error: !shouldLog("off") ? console.error : () => {
+  },
+  debug: shouldLog("debug") ? console.debug : () => {
+  },
+  warn: shouldLog("info") || shouldLog("warning") ? console.warn : () => {
   }
 };
-
-// src/model-config.ts
-var defaultModelConfig = {
-  model: "teknium/OpenHermes-2p5-Mistral-7B",
-  n: 1,
-  presence_penalty: 0,
-  frequency_penalty: 0,
-  repetition_penalty: 1.2,
-  temperature: 0.93,
-  max_tokens: 200,
-  top_p: 0.93,
-  top_k: 4,
-  // min_p: 0.05,
-  stop: "",
-  stop_token_ids: [
-    0
-  ],
-  ignore_eos: false,
-  skip_special_tokens: true,
-  spaces_between_special_tokens: true,
-  extra: {
-    template: defaultPromptTemplates.chatml,
-    promptConfig: defaultPromptConfig
-  }
-};
-var largeContextModelConfig = {
-  model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
-  //'NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO',
-  n: 1,
-  presence_penalty: 0,
-  frequency_penalty: 0,
-  repetition_penalty: 1.2,
-  temperature: 0.93,
-  max_tokens: 512,
-  top_p: 0.93,
-  top_k: 4,
-  // min_p: 0.05,
-  stop: "",
-  stop_token_ids: [
-    0
-  ],
-  ignore_eos: false,
-  skip_special_tokens: true,
-  spaces_between_special_tokens: true,
-  extra: {
-    template: defaultPromptTemplates.mistral,
-    promptConfig: {
-      max_prompt_length: 1e5,
-      job_in_chat: false,
-      system_role_allowed: false
-    }
-  }
-};
-
-// src/model.ts
-var ModelError = class _ModelError extends Error {
-  constructor(msg, reason, job, jobResponse, error) {
-    super(msg);
-    this.reason = reason;
-    this.job = job;
-    this.jobResponse = jobResponse;
-    this.error = error;
-    Object.setPrototypeOf(this, _ModelError.prototype);
-  }
-};
-var Model = class {
-  /**
-   * Creates an instance of Model.
-   * @param {string} [path='/api/user/writersroom/generate']
-   * @memberof Model
-   */
-  constructor(path = "/api/user/writersroom/generate") {
-    this.modelConfig = defaultModelConfig;
-    /**
-     * All tokens sent to the model
-     *
-     * @type {number}
-     * @memberof Model
-     */
-    this.inputTokens = 0;
-    /**
-     * All tokens received from the model
-     *
-     * @type {number}
-     * @memberof Model
-     */
-    this.outputTokens = 0;
-    /**
-     * Accumulated runtime
-     *
-     * @type {number}
-     * @memberof Model
-     */
-    this.runtime = 0;
-    this.promptTemplate = this.modelConfig.extra.template;
-    this.promptConfig = this.modelConfig.extra.promptConfig;
-    this.jsonToJobResponse = (jsonResponse) => {
-      try {
-        const jobResponse = {
-          id: jsonResponse.id,
-          // job_id
-          response: jsonResponse.choices[0]?.text,
-          // generated text - change this if n > 1 in inference params
-          input_tokens: jsonResponse.usage?.prompt_tokens,
-          // runtime of the request
-          output_tokens: jsonResponse.usage?.completion_tokens
-          // runtime of the request
-          /** The following properties are unavailable in OpenAI-compatible response schema */
-          // status: jsonResponse.data?.status, // job status
-          // error: !jsonResponse.status ? jsonResponse.detail : false, // API-response status or a detail
-          // runtime: jsonResponse.runtime, // runtime of the request
-        };
-        return jobResponse;
-      } catch (error) {
-        console.error("Error parsing JSON:", error);
-        throw new Error("JSON Parsing error.");
-      }
-    };
-    /**
-     * Builds a complete response object from an event-stream response.
-     *
-     * Useful, when streaming directly to user-facing components is not available.
-     *
-     * Waits for the streaming response to end and builds a response object that is the same
-     * as the response object when not streaming i.e., json response.
-     *
-     * @private
-     * @param {Response} response
-     * @memberof Model
-     */
-    this.buildResponseFromStream = async (response) => {
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Response body is not readable.");
-      }
-      let buffer = "";
-      let completeResponse = [];
-      let completedData = null;
-      const processTextStreamChunk = (chunk) => {
-        buffer += new TextDecoder("utf-8").decode(chunk);
-        const lines = buffer.split("\r\n");
-        for (let i = 0; i < lines.length - 1; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-          if (line.startsWith("data:")) {
-            const dataMessage = line.substring(5).trim();
-            if (dataMessage && dataMessage !== "[DONE]") {
-              try {
-                const dataObject = JSON.parse(dataMessage);
-                completedData = dataObject;
-                completeResponse.push(dataObject.choices[0]?.text);
-              } catch (error) {
-                console.error("Error parsing JSON:", error);
-                throw new Error("JSON Parsing error.");
-              }
-            }
-            continue;
-          }
-        }
-        buffer = lines[lines.length - 1];
-      };
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          if (completedData) {
-            completedData.choices[0].text = completeResponse.join("");
-            return completedData;
-          }
-          throw new Error("Error in response stream or incomplete stream received.");
-        }
-        processTextStreamChunk(value);
-      }
-    };
-    this.processPOSTResponse = async (response) => {
-      let jsonResponse;
-      const contentType = response.headers.get("content-type");
-      const responseIsStream = contentType && contentType.includes("text/event-stream");
-      if (!responseIsStream) {
-        jsonResponse = await response.json();
-      } else {
-        jsonResponse = await this.buildResponseFromStream(response);
-      }
-      const dataObject = this.jsonToJobResponse(jsonResponse);
-      return dataObject;
-    };
-    /**
-     * Call this function to run a job. Returns a job response and updates the local db.
-     *
-     * @param {Job} job
-     * @param {KyInstance} instance
-     * @param {Options} [additionalOptions]
-     * @memberof Model
-     */
-    this.runJob = async (job, instance, additionalOptions) => {
-      let jobResponse = void 0;
-      const presetAction = job.context.action;
-      if (!job.prompt) throw new ModelError("Can not run inference", "No prompt found", job);
-      const postData = {
-        prompt: job.prompt,
-        preset: presetAction,
-        chat_id: job.context.chatID,
-        situation_id: job.context.situation,
-        interaction_id: job.context.interactionID,
-        ...job.modelConfig || this.modelConfig
-        // job can override parameters
-      };
-      delete postData["extra"];
-      return instance.post(this.path, {
-        json: postData,
-        ...additionalOptions
-      }).then(async (res) => {
-        jobResponse = await this.processPOSTResponse(res);
-        jobResponse.input_tokens && (this.inputTokens += jobResponse.input_tokens);
-        jobResponse.output_tokens && (this.outputTokens += jobResponse.output_tokens);
-        if (!jobResponse.id) {
-          throw new Error("Job ID not found!");
-        }
-        return jobResponse;
-      }).catch((e) => {
-        console.error(e);
-        throw new ModelError("Job failed!", "Invalid response.", job, void 0, e instanceof Error ? e : void 0);
-      });
-    };
-    this.path = path;
-    return this;
-  }
-};
-
-// src/prompter.ts
-import { Template } from "@huggingface/jinja";
 
 // src/context.ts
 var defaultDecorators = [
@@ -282,16 +47,16 @@ var Context = class {
     this.findDelegate = (configuration, companions) => {
       const action = this.findActionConfiguration(configuration);
       const answer = this.hasAnswer();
-      console.log("ACTION: " + action?.id);
-      console.log("ANSWER: " + answer);
+      logger.debug("ACTION: " + action?.id);
+      logger.debug("ANSWER: " + answer);
       if (action && !answer) {
         const deputy = companions.find((c) => c.id == action.deputy);
-        console.log("Action " + action.id + " => " + deputy + " found.");
+        logger.debug("Action " + action.id + " => " + deputy + " found.");
         if (deputy) {
           return deputy;
         } else {
-          console.info("Deputy " + action.deputy + " not found.");
-          console.info(companions);
+          logger.debug("Deputy " + action.deputy + " not found.");
+          logger.debug(companions);
         }
       }
       return void 0;
@@ -337,36 +102,6 @@ var Context = class {
   // removeData = (type: ContextDataTypes) => this.data = this.data.filter(d => d.type != type);
 };
 
-// src/conditions.ts
-var evaluateCondition = (condition, worldState) => {
-  const min = condition.min || 0;
-  const max = condition.max || Number.MAX_SAFE_INTEGER;
-  switch (condition.tag) {
-    case "none":
-      return true;
-    case "event":
-      const activeEvent = worldState.find((entry) => entry.key == condition.value);
-      return activeEvent != void 0 && activeEvent.value;
-    default:
-      break;
-  }
-  if (typeof condition.tag == "string") {
-    const entry = worldState.find((entry2) => entry2.key == condition.tag);
-    if (!entry) {
-      console.error("Invalid trigger: '" + condition.tag + "' not found in world state.");
-      return false;
-    }
-    if (condition.value && typeof condition.value != typeof entry.value) {
-      console.error("Invalid trigger: " + condition.tag + " has a different type than the corresponding world state.");
-      return false;
-    }
-    if (typeof entry.value == "number" && condition.value == void 0)
-      return entry.value >= min && entry.value < max;
-    return entry.value === condition.value;
-  }
-  return false;
-};
-
 // src/utils/array-utils.ts
 var getRandomElement = (array) => {
   return array[Math.floor(Math.random() * array.length)];
@@ -375,158 +110,64 @@ var randomArrayElement = (array) => {
   return array[Math.floor(Math.random() * array.length)];
 };
 
-// src/utils/time-utils.ts
-var unixTimestampToDate = (timestamp) => {
-  const options = {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  };
-  let dt = new Date(timestamp).toLocaleDateString("default", options);
-  return dt;
+// src/config/prompts.ts
+var defaultPromptConfig = {
+  max_prompt_length: 1024 * 3 * 4,
+  job_in_chat: false,
+  system_role_allowed: true
 };
-
-// src/prompter.ts
-var Prompt = class {
-  constructor(basePrompt) {
-    this.append = (data, separator = "\n") => {
-      data && (this.prompt = this.prompt + separator + data);
-      return this;
-    };
-    this.prompt = basePrompt;
-    return this;
+var defaultPromptTemplates = {
+  "mistral": {
+    bos_token: "<s>",
+    eos_token: "</s>",
+    unk_token: "<unk>",
+    chat_template: "{{ bos_token }}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ '[INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ message['content'] + eos_token + ' ' }}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+  },
+  "chatml": {
+    bos_token: "<s>",
+    eos_token: "<|im_end|>",
+    unk_token: "<unk>",
+    chat_template: "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}<|im_start|>{{ speaker }}\n"
   }
 };
-var Prompter = class {
-  /**
-   * Creates an instance of Prompter.
-   * @param {PromptTemplate} config
-   * @memberof Prompter
-   */
-  constructor(config) {
-    /**
-     * Decorate the prompt using data.
-     *
-     * @private
-     * @param {ContextDataTypes} type
-     * @param {string} [text]
-     * @param {ContextDecorator[]} [decorators]
-     * @memberof Prompter
-     */
-    this.decorate = (type, text, decorators) => {
-      if (!text || !decorators) return void 0;
-      const decorator = decorators.find((d) => d.type == type);
-      return decorator && decorator.replacement.replace("{{DATA}}", text);
-    };
-    /**
-     * Clean the string
-     *
-     * @private
-     * @param {string} text
-     * @memberof Prompter
-     */
-    this.sanitize = (text) => {
-      return text.replace(/<.*>/gi, "").trim();
-    };
-    /**
-     * Use jinja to render the prompt using the current configuration and template.
-     *
-     * @param {string} speaker
-     * @param {{ role: string, content: string }[]} chat
-     * @param {Template} [template=this.template]
-     * @memberof Prompter
-     */
-    this.renderPrompt = (speaker, chat, template = this.template) => {
-      const result = template.render({
-        messages: chat,
-        bos_token: this.config.bos_token,
-        eos_token: this.config.eos_token,
-        speaker
-      });
-      if (true) {
-        console.log("Prompt: ", result);
-      }
-      return result;
-    };
-    /**
-     * Assemble the prompt for one inference using the supplied data and world state.
-     *
-     * @param {Companion} companion
-     * @param {KeyValueRecord[]} worldState
-     * @param {Context} context
-     * @param {ChatMessage[]} [history]
-     * @param {ContextDecorator[]} [decorators=[]]
-     * @param {PromptConfig} [config=defaultPromptConfig]
-     * @param {PromptTemplate} [promptTemplate]
-     * @return {*} 
-     */
-    this.assemblePrompt = (companion, worldState, context, history, decorators = [], config = defaultPromptConfig, promptTemplate) => {
-      let tags = [];
-      companion.configuration.knowledge && companion.configuration.knowledge.filter((knowledge) => knowledge.condition && evaluateCondition(knowledge.condition, worldState)).forEach((knowledge) => tags.push(getRandomElement(knowledge.lines)));
-      const allDecorators = defaultDecorators.concat(decorators);
-      const questionData = this.decorate("question", context.question, allDecorators);
-      const personaData = this.decorate("persona", context.persona, allDecorators);
-      const jobData = config.job_in_chat ? void 0 : this.decorate("job", context.job, allDecorators);
-      const answerData = this.decorate("answer", context.answer, allDecorators);
-      const messageData = this.decorate("message", context.message, allDecorators);
-      const quoteData = this.decorate("quote", context.quote, allDecorators);
-      const epilogueData = this.decorate("epilogue", context.epilogue, allDecorators);
-      const chatData = this.decorate("chat", context.chat, allDecorators);
-      const textData = this.decorate("text", context.text, allDecorators);
-      const paragraphData = this.decorate("paragraph", context.paragraph, allDecorators);
-      const inputData = textData || paragraphData || this.decorate("text", context.input, allDecorators);
-      ;
-      console.log("context", { ...context });
-      console.log("input data", context.query()?.substring(0, 250));
-      const moodData = companion.mood.prompt;
-      const otherCompanions = context.companions.filter((c) => c.configuration.kind != "shell" && c.id != companion.id).map((c) => c.configuration.description);
-      const companionList = otherCompanions && otherCompanions.join("\n");
-      const isAction = context.action != void 0;
-      const knowledgeData = isAction ? void 0 : this.decorate("knowledge", tags.join("\n"), allDecorators);
-      const situationData = isAction ? void 0 : companion.configuration.situations?.find((s) => s.id == context.situation)?.prompt;
-      const companionData = isAction ? void 0 : companionList && this.decorate("companionNames", companionList, allDecorators);
-      const currentTimeData = isAction ? void 0 : "It is currently " + unixTimestampToDate(Date.now());
-      const system_prompt = new Prompt("").append(companion.getBasePrompt()).append(personaData || situationData).append(currentTimeData).append(companionData).append(knowledgeData).append(moodData).append(jobData).append(inputData).append(messageData).append(answerData).append(questionData).append(quoteData).append(chatData).append(epilogueData);
-      const chat = [];
-      let cutoff = 0;
-      if (history && history.length > 0 && !answerData && !epilogueData && !jobData && !chatData) {
-        const username = worldState.find((w) => w.key == "USERNAME")?.value;
-        history.filter((m) => m.companion.configuration.kind != "shell").forEach((line) => chat.push(
-          {
-            role: line.companion.id == "you" ? username && typeof username == "string" ? username : "user" : line.companion.id == companion.id ? "assistant" : line.companion.configuration.name,
-            content: this.sanitize(line.message)
-          }
-        ));
-        let budget = config.max_prompt_length - system_prompt.prompt.length - 255;
-        chat.reverse().every((entry, index) => {
-          budget -= entry.content.length + entry.role.length + 6;
-          if (budget < 0) {
-            cutoff = index;
-            return false;
-          }
-          return true;
-        });
-      }
-      const start = 0;
-      const end = cutoff !== 0 ? cutoff : history?.length;
-      const cleaned_chat = [{ role: config.system_role_allowed ? "system" : "user", content: this.sanitize(system_prompt.prompt) }, ...chat.slice(start, end).reverse()];
-      const job = context.job;
-      if (config.job_in_chat && job) {
-        cleaned_chat.push({ role: "user", content: this.sanitize(job) });
-      }
-      const name = "assistant";
-      let template = void 0;
-      if (promptTemplate) {
-        template = new Template(promptTemplate.chat_template);
-      }
-      return this.renderPrompt(name, cleaned_chat, template);
-    };
-    this.template = new Template(config.chat_template);
-    this.config = config;
+
+// src/config/models.ts
+var defaultModelConfig = {
+  model: "teknium/OpenHermes-2p5-Mistral-7B",
+  n: 1,
+  presence_penalty: 0,
+  frequency_penalty: 0,
+  repetition_penalty: 1.2,
+  temperature: 0.93,
+  max_tokens: 200,
+  top_p: 0.93,
+  top_k: 4,
+  // min_p: 0.05,
+  stop: "",
+  stop_token_ids: [
+    0
+  ],
+  ignore_eos: false,
+  skip_special_tokens: true,
+  spaces_between_special_tokens: true,
+  stream: false,
+  extra: {
+    template: defaultPromptTemplates.chatml,
+    promptConfig: defaultPromptConfig
+  }
+};
+var largeContextModelConfig = {
+  ...defaultModelConfig,
+  model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+  //'NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO',
+  max_tokens: 512,
+  extra: {
+    template: defaultPromptTemplates.mistral,
+    promptConfig: {
+      max_prompt_length: 1e5,
+      job_in_chat: false,
+      system_role_allowed: false
+    }
   }
 };
 
@@ -598,10 +239,39 @@ var getRandomParagraph = (document) => {
   return shortenText(selectedParagraph, 1e3).trim();
 };
 
+// src/conditions.ts
+var evaluateCondition = (condition, worldState) => {
+  const min = condition.min || 0;
+  const max = condition.max || Number.MAX_SAFE_INTEGER;
+  switch (condition.tag) {
+    case "none":
+      return true;
+    case "event":
+      const activeEvent = worldState.find((entry) => entry.key == condition.value);
+      return activeEvent != void 0 && activeEvent.value;
+    default:
+      break;
+  }
+  if (typeof condition.tag == "string") {
+    const entry = worldState.find((entry2) => entry2.key == condition.tag);
+    if (!entry) {
+      logger.error("Invalid trigger: '" + condition.tag + "' not found in world state.");
+      return false;
+    }
+    if (condition.value && typeof condition.value != typeof entry.value) {
+      logger.error("Invalid trigger: " + condition.tag + " has a different type than the corresponding world state.");
+      return false;
+    }
+    if (typeof entry.value == "number" && condition.value == void 0)
+      return entry.value >= min && entry.value < max;
+    return entry.value === condition.value;
+  }
+  return false;
+};
+
 // src/companions/companion.ts
 var _Companion = class _Companion {
   constructor(configuration) {
-    this.modelConfig = void 0;
     this.mood = { label: "neutral", prompt: void 0 };
     this.getBasePrompt = () => this.configuration.base_prompt;
     this.getMottosByEvent = (event, drama) => {
@@ -620,8 +290,9 @@ var _Companion = class _Companion {
     this.interactions = 0;
     this.actions = 0;
     this.status = "active";
+    this.configuration.modelConfig = configuration.modelConfig || defaultModelConfig;
     if (configuration.temperature) {
-      this.modelConfig = { ...defaultModelConfig, temperature: configuration.temperature };
+      this.configuration.modelConfig.temperature = configuration.temperature;
     }
     return this;
   }
@@ -672,13 +343,14 @@ var AutoCompanion = class _AutoCompanion extends Companion {
     this.runInference = async (chat, context, recipient, sender) => {
       const deputyDecorators = context && sender && sender?.decorators;
       const newContext = context || new Context(this, chat.companions, chat.id, chat.situation, []);
-      const prompt = chat.drama.getPrompt(this, chat.history, context, deputyDecorators);
+      const input = chat.drama.getInput(this, chat.history, context, deputyDecorators);
       const job = {
         id: "internal",
         remoteID: "",
         status: "new",
-        modelConfig: this.modelConfig,
-        prompt,
+        modelConfig: this.configuration.modelConfig,
+        prompt: typeof input === "string" ? input : void 0,
+        messages: typeof input !== "string" ? input : void 0,
         context: newContext,
         timeStamp: Date.now()
       };
@@ -711,16 +383,17 @@ var Deputy = class extends AutoCompanion {
       const document = context.query();
       return document != void 0 && document.trim().length >= 2e3;
     };
-    this.newDeputyJob = (prompt, context, situation) => {
+    this.newDeputyJob = (input, context, situation) => {
       const newContext = context || new Context(this, [], "", situation || "deputy", []);
+      const inputData = { prompt: typeof input === "string" ? input : void 0, messages: typeof input !== "string" ? input : void 0 };
       const job = {
         id: "internal",
         remoteID: "",
         status: "new",
-        modelConfig: this.modelConfig,
-        prompt,
+        modelConfig: this.configuration.modelConfig,
         context: newContext,
-        timeStamp: Date.now()
+        timeStamp: Date.now(),
+        ...inputData
       };
       return job;
     };
@@ -731,7 +404,7 @@ var Deputy = class extends AutoCompanion {
       return [document == void 0 || document.length == 0, context];
     };
     this.pickRandomParagraph = async (chat, context, recipient, sender) => {
-      console.log("pickRandomParagraph", context);
+      logger.debug("pickRandomParagraph", context);
       const document = context.query();
       if (!document) return [false, void 0];
       context.text = getRandomParagraph(document);
@@ -740,7 +413,7 @@ var Deputy = class extends AutoCompanion {
       return [false, context];
     };
     this.pickLastParagraph = async (chat, context, recipient, sender) => {
-      console.log("pickLastParagraph", context);
+      logger.debug("pickLastParagraph", context);
       const document = context.query();
       if (!document) return [false, void 0];
       context.text = getLastParagraph(document);
@@ -749,7 +422,7 @@ var Deputy = class extends AutoCompanion {
       return [false, context];
     };
     this.pickLastSentence = async (chat, context, recipient, sender) => {
-      console.log("pickLastSentence", context);
+      logger.debug("pickLastSentence", context);
       const document = context.query();
       if (!document) return [false, void 0];
       context.text = getLastSentence(document);
@@ -775,25 +448,26 @@ var Deputy = class extends AutoCompanion {
         const documentSize = trimmedDocument.length;
         const shorter = trimmedDocument.substring(0, findCut(trimmedDocument, 3e4)) + "\n\n" + trimmedDocument.substring(findCut(trimmedDocument, documentSize / 2 - 3e4 / 2), findCut(trimmedDocument, documentSize / 2 + 3e4 / 2)) + "\n\n" + trimmedDocument.substring(findCut(trimmedDocument, documentSize - 3e4));
         trimmedDocument = shorter;
-        console.log("Gigantic document cut down from " + documentSize + " to " + trimmedDocument.length + " characters before summary.");
+        logger.debug("Gigantic document cut down from " + documentSize + " to " + trimmedDocument.length + " characters before summary.");
       }
       const tempContext = new Context(this, [], "", context.situation, [
         { type: "job", data: "Read the following document and reply with a one page summary." },
         { type: "action", data: "SUMMARISE_DOCUMENT" }
       ]);
-      const prompt = chat.drama.prompter.assemblePrompt(
+      const input = chat.drama.prompter.assemblePrompt(
         this,
         chat.drama.worldState,
         { ...tempContext, input: trimmedDocument },
         void 0,
         void 0,
         largeContextModelConfig.extra.promptConfig,
-        trimmedDocument.length > 3e4 ? largeContextModelConfig.extra.template : void 0
+        trimmedDocument.length > 3e4 ? largeContextModelConfig.extra.template : void 0,
+        this.drama.chatMode
       );
-      const job = this.newDeputyJob(prompt, tempContext);
+      const job = this.newDeputyJob(input, tempContext);
       if (trimmedDocument.length > 3e4) {
         job.modelConfig = largeContextModelConfig;
-        console.log("Using large model");
+        logger.debug("Using large model");
       }
       try {
         const jobResponse = await chat.drama.runJob(job);
@@ -802,7 +476,7 @@ var Deputy = class extends AutoCompanion {
         context.input = void 0;
         return [false, context];
       } catch (e) {
-        console.error(e);
+        logger.error(e);
         return [true, void 0];
       }
     };
@@ -867,7 +541,7 @@ ${username}: A guest user in the chatroom.
     this.selectSpeakers = async (chat, context, lastSpeaker, except, messages) => {
       const companions = chat.companions;
       if (companions.length == 1) return [companions[0]];
-      console.log("Speaker selection");
+      logger.debug("In speaker selection");
       const nextSpeaker = context.recipient;
       if (nextSpeaker) {
         const deputy = context.findDelegate(nextSpeaker.configuration, chat.drama.companions);
@@ -880,20 +554,20 @@ ${username}: A guest user in the chatroom.
       const allowedSpeakers = (except == void 0 ? companions : companions.filter((c) => except.find((e) => e.id == c.id) == void 0)).filter((c) => c.configuration.kind != "shell");
       const speakers = chat.allowRepeatSpeaker || lastSpeaker == void 0 ? allowedSpeakers : allowedSpeakers.filter((c) => lastSpeaker != void 0 && c.id != lastSpeaker.id);
       const you = chat.companions.find((c) => c.configuration.kind == "user");
-      console.log("lastSpeaker: ", lastSpeaker);
-      console.log("allowedSpeakers: ", speakers);
+      logger.debug("lastSpeaker: ", lastSpeaker);
+      logger.debug("allowedSpeakers: ", speakers);
       if (speakers.length == 1)
         return [speakers[0]];
       if (chat.history.length > 0) {
         const mentionedSpeakers = chat.mentionedCompanions(chat.history[chat.history.length - 1].message).filter((m) => speakers.includes(m));
         if (mentionedSpeakers.length > 0) {
-          console.log("mentionedSpeakers: ", mentionedSpeakers);
+          logger.debug("mentionedSpeakers: ", mentionedSpeakers);
           return lastSpeaker && !mentionedSpeakers.includes(lastSpeaker) ? [lastSpeaker, ...mentionedSpeakers] : mentionedSpeakers;
         }
       }
       const selectedSpeaker = chat.speakerSelection == "round_robin" && lastSpeaker ? chat.nextCompanion(lastSpeaker, speakers.filter((s) => s.configuration.kind == "npc")) : chat.speakerSelection == "random" ? getRandomElement(speakers) : void 0;
-      console.log("speakerSelection: " + chat.speakerSelection);
-      selectedSpeaker && console.log("Next speaker: " + selectedSpeaker?.id);
+      logger.debug("speakerSelection: " + chat.speakerSelection);
+      selectedSpeaker && logger.debug("Next speaker: " + selectedSpeaker?.id);
       if (selectedSpeaker) return [selectedSpeaker];
       if (!messages) return [getRandomElement(speakers)];
       const username = chat.drama.worldState.find((w) => w.key == "USERNAME")?.value || "user";
@@ -904,22 +578,27 @@ ${username}: A guest user in the chatroom.
         { type: "action", data: "SELECT_SPEAKER" },
         { type: "epilogue", data: "\n## END OF CONVERSATION ##" }
       ]);
-      const prompt = chat.drama.prompter.assemblePrompt(
+      const input = chat.drama.prompter.assemblePrompt(
         this,
         chat.drama.worldState,
-        newContext
+        newContext,
+        void 0,
+        void 0,
+        void 0,
+        void 0,
+        this.drama.chatMode
       );
-      const job = this.newDeputyJob(prompt, newContext);
+      const job = this.newDeputyJob(input, newContext);
       try {
         const jobResponse = await chat.drama.runJob(job);
         if (jobResponse && jobResponse.response) {
           const mentionedCompanions = chat.mentionedCompanions(jobResponse.response);
-          mentionedCompanions.length > 0 ? console.log("Auto speakers: " + mentionedCompanions.map((c) => c.configuration.name).join(", ")) : console.log("Auto speakers response: " + jobResponse.response);
+          mentionedCompanions.length > 0 ? logger.debug("Auto speakers: " + mentionedCompanions.map((c) => c.configuration.name).join(", ")) : logger.debug("Auto speakers response: " + jobResponse.response);
           const allowedMentioned = mentionedCompanions.filter((c) => speakers.includes(c));
           if (allowedMentioned.length >= 1) return allowedMentioned.reverse();
         }
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
       return [getRandomElement(speakers)];
     };
@@ -964,7 +643,7 @@ var Chat = class {
       this.companions.filter((c) => c.configuration.kind == "npc").forEach((c) => c.configuration.actions?.forEach((a) => {
         const deputy = this.drama.companions.find((c2) => c2.id == a.deputy);
         if (!deputy) {
-          console.error("Error: Can't find deputy: " + a.deputy);
+          logger.error("Error: Can't find deputy: " + a.deputy);
           return;
         }
         if (!this.companions.includes(deputy)) {
@@ -984,7 +663,7 @@ var Chat = class {
      * @date 12/01/2024 - 12:51:23
      */
     this.appendMessage = (companion, message, context) => {
-      console.log(companion.id + ": " + message);
+      logger.debug(companion.id + ": " + message);
       const appendedMessage = { companion, message, timeStamp: Date.now(), context: context ? { ...context } : void 0 };
       this.history.push(appendedMessage);
       companion.interactions++;
@@ -1065,9 +744,6 @@ var Chat = class {
   }
 };
 
-// src/drama.ts
-import ky from "ky";
-
 // src/companions/chat-companion.ts
 var ChatCompanion = class extends AutoCompanion {
   constructor(configuration, drama) {
@@ -1082,18 +758,403 @@ var ChatCompanion = class extends AutoCompanion {
   // }
 };
 
+// src/companions/instruction-deputy.ts
+var _InstructionDeputy = class _InstructionDeputy extends Deputy {
+  constructor(configuration = _InstructionDeputy.config, drama) {
+    super(configuration, drama);
+    this.runAction = async (chat, context, recipient, sender) => {
+      const input = context.query();
+      if (!input || input.length < 5) {
+        context.job = "Explain your purpose to the user and that the user has to select some text before you can do your job.";
+        return [true, context];
+      }
+      context.job = this.configuration.job;
+      return [true, context];
+    };
+    this.replyFunctions.push({ trigger: "*", replyFunction: this.runAction });
+    return this;
+  }
+};
+_InstructionDeputy.config = {
+  name: "Barclay",
+  class: _InstructionDeputy,
+  description: "This deputy sets a job for the companion to act out.",
+  base_prompt: "",
+  kind: "shell",
+  temperature: 0
+};
+var InstructionDeputy = _InstructionDeputy;
+
+// src/companions/test-deputy.ts
+var _TestDeputy = class _TestDeputy extends Deputy {
+  constructor(configuration = _TestDeputy.config, drama) {
+    super(configuration, drama);
+    this.runAction = async (chat, context, recipient, sender) => {
+      logger.debug("TEST DELEGATE CONTEXT", context);
+      return [true, context];
+    };
+    this.replyFunctions.push({ trigger: "*", replyFunction: this.runAction });
+    return this;
+  }
+};
+_TestDeputy.config = {
+  name: "Kirk",
+  class: _TestDeputy,
+  description: "Just for testing",
+  base_prompt: "",
+  kind: "shell",
+  temperature: 0
+};
+var TestDeputy = _TestDeputy;
+
+// src/drama.ts
+import ky from "ky";
+import { v4 as uuidv4 } from "uuid";
+
+// src/model.ts
+var ModelError = class _ModelError extends Error {
+  constructor(msg, reason, job, jobResponse, error) {
+    super(msg);
+    this.reason = reason;
+    this.job = job;
+    this.jobResponse = jobResponse;
+    this.error = error;
+    Object.setPrototypeOf(this, _ModelError.prototype);
+  }
+};
+var Model = class {
+  /**
+   * Creates an instance of Model.
+   * @param {string}
+   * @memberof Model
+   */
+  constructor(path) {
+    this.modelConfig = defaultModelConfig;
+    /**
+     * All tokens sent to the model
+     *
+     * @type {number}
+     * @memberof Model
+     */
+    this.inputTokens = 0;
+    /**
+     * All tokens received from the model
+     *
+     * @type {number}
+     * @memberof Model
+     */
+    this.outputTokens = 0;
+    /**
+     * Accumulated runtime
+     *
+     * @type {number}
+     * @memberof Model
+     */
+    this.runtime = 0;
+    this.promptTemplate = this.modelConfig.extra.template;
+    this.promptConfig = this.modelConfig.extra.promptConfig;
+    this.jsonToJobResponse = (jsonResponse) => {
+      try {
+        const jobResponse = {
+          id: jsonResponse.id,
+          // job_id
+          response: jsonResponse.response || jsonResponse.choices[0]?.text || jsonResponse.choices[0]?.message?.content,
+          // generated text - change this if n > 1 in inference params
+          input_tokens: jsonResponse.usage?.prompt_tokens,
+          // runtime of the request
+          output_tokens: jsonResponse.usage?.completion_tokens
+          // runtime of the request
+          /** The following properties are unavailable in OpenAI-compatible response schema */
+          // status: jsonResponse.data?.status, // job status
+          // error: !jsonResponse.status ? jsonResponse.detail : false, // API-response status or a detail
+          // runtime: jsonResponse.runtime, // runtime of the request
+        };
+        return jobResponse;
+      } catch (error) {
+        logger.error("Error parsing JSON:", error);
+        throw new Error("JSON Parsing error.");
+      }
+    };
+    /**
+     * Builds a complete response object from an event-stream response.
+     *
+     * Useful, when streaming directly to user-facing components is not available.
+     *
+     * Waits for the streaming response to end and builds a response object that is the same
+     * as the response object when not streaming i.e., json response.
+     *
+     * @private
+     * @param {Response} response
+     * @memberof Model
+     */
+    this.buildResponseFromStream = async (response) => {
+      let buffer = "";
+      let completeResponse = [];
+      let completedData = null;
+      const reader = response.body?.pipeThrough(new TextDecoderStream()).getReader();
+      if (!reader) {
+        throw new Error("Response body is unreadable or cannot be decoded as text.");
+      }
+      ;
+      while (true) {
+        let dataDone = false;
+        const { done, value } = await reader.read();
+        if (done || dataDone) {
+          if (completedData) {
+            completedData.response = completeResponse.join("");
+            return completedData;
+          }
+          throw new Error("Error in response stream or incomplete stream received.");
+        }
+        buffer += value;
+        const lines = buffer.split("\n");
+        lines.forEach((data) => {
+          const line = data.trim();
+          if (!line) return;
+          if (!line.startsWith("data:")) return;
+          if (line === "data: [DONE]") return;
+          const dataMessage = line.substring(5).trim();
+          logger.debug(`Data: ${dataMessage}
+`);
+          try {
+            const dataObject = JSON.parse(dataMessage);
+            completedData = dataObject;
+            const responseChunk = dataObject.choices[0]?.text || dataObject.choices[0]?.delta?.content || "";
+            completeResponse.push(responseChunk);
+            buffer = "";
+          } catch (error) {
+            logger.debug("Received non-JSON stream chunk:", line);
+          }
+        });
+      }
+    };
+    this.processPOSTResponse = async (response) => {
+      let jsonResponse;
+      const contentType = response.headers.get("content-type");
+      const responseIsStream = contentType && contentType.includes("text/event-stream");
+      logger.debug("Response is of type " + contentType);
+      if (!responseIsStream) {
+        jsonResponse = await response.json();
+      } else {
+        jsonResponse = await this.buildResponseFromStream(response);
+      }
+      const dataObject = this.jsonToJobResponse(jsonResponse);
+      return dataObject;
+    };
+    /**
+     * Call this function to run a job. Returns a job response and updates the local db.
+     *
+     * @param {Job} job
+     * @param {KyInstance} instance
+     * @param {Options} [additionalOptions]
+     * @memberof Model
+     */
+    this.runJob = async (job, instance, additionalOptions) => {
+      let jobResponse = void 0;
+      const presetAction = job.context.action;
+      if (!(job.prompt || job.messages)) throw new ModelError("Can not run inference", "No prompt or messages array found.", job);
+      const postData = {
+        prompt: job.prompt,
+        messages: job.messages,
+        preset: presetAction,
+        chat_id: job.context.chatID,
+        situation_id: job.context.situation,
+        interaction_id: job.context.interactionID,
+        ...job.modelConfig || this.modelConfig
+        // job can override parameters
+      };
+      delete postData["extra"];
+      return instance.post(this.path, {
+        json: postData,
+        ...additionalOptions
+      }).then(async (res) => {
+        jobResponse = await this.processPOSTResponse(res);
+        jobResponse.input_tokens && (this.inputTokens += jobResponse.input_tokens);
+        jobResponse.output_tokens && (this.outputTokens += jobResponse.output_tokens);
+        if (!jobResponse.id) {
+          throw new Error("Job ID not found!");
+        }
+        return jobResponse;
+      }).catch((e) => {
+        logger.error(e);
+        throw new ModelError("Job failed!", "Invalid response.", job, void 0, e instanceof Error ? e : void 0);
+      });
+    };
+    this.path = path.startsWith("/") ? path.slice(1) : path;
+    return this;
+  }
+};
+
+// src/prompter.ts
+import { Template } from "@huggingface/jinja";
+
+// src/utils/time-utils.ts
+var unixTimestampToDate = (timestamp) => {
+  const options = {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  };
+  let dt = new Date(timestamp).toLocaleDateString("default", options);
+  return dt;
+};
+
+// src/prompter.ts
+var Prompt = class {
+  constructor(basePrompt) {
+    this.append = (data, separator = "\n") => {
+      data && (this.prompt = this.prompt + separator + data);
+      return this;
+    };
+    this.prompt = basePrompt;
+    return this;
+  }
+};
+var Prompter = class {
+  /**
+   * Creates an instance of Prompter.
+   * @param {PromptTemplate} config
+   * @memberof Prompter
+   */
+  constructor(config) {
+    /**
+     * Decorate the prompt using data.
+     *
+     * @private
+     * @param {ContextDataTypes} type
+     * @param {string} [text]
+     * @param {ContextDecorator[]} [decorators]
+     * @memberof Prompter
+     */
+    this.decorate = (type, text, decorators) => {
+      if (!text || !decorators) return void 0;
+      const decorator = decorators.find((d) => d.type == type);
+      return decorator && decorator.replacement.replace("{{DATA}}", text);
+    };
+    /**
+     * Clean the string
+     *
+     * @private
+     * @param {string} text
+     * @memberof Prompter
+     */
+    this.sanitize = (text) => {
+      return text.replace(/<.*>/gi, "").trim();
+    };
+    /**
+     * Use jinja to render the prompt using the current configuration and template.
+     *
+     * @param {string} speaker
+     * @param {{ role: string, content: string }[]} chat
+     * @param {Template} [template=this.template]
+     * @memberof Prompter
+     */
+    this.renderPrompt = (speaker, chat, template = this.template) => {
+      const result = template.render({
+        messages: chat,
+        bos_token: this.config.bos_token,
+        eos_token: this.config.eos_token,
+        speaker
+      });
+      if (true) {
+        logger.debug("Prompt: ", result);
+      }
+      return result;
+    };
+    /**
+     * Assemble the prompt for one inference using the supplied data and world state.
+     *
+     * @param {Companion} companion
+     * @param {KeyValueRecord[]} worldState
+     * @param {Context} context
+     * @param {ChatMessage[]} [history]
+     * @param {ContextDecorator[]} [decorators=[]]
+     * @param {PromptConfig} [config=defaultPromptConfig]
+     * @param {PromptTemplate} [promptTemplate]
+     * @param {returnChat} [returnChat]
+     */
+    this.assemblePrompt = (companion, worldState, context, history, decorators = [], config = defaultPromptConfig, promptTemplate, returnChat = false) => {
+      let tags = [];
+      companion.configuration.knowledge && companion.configuration.knowledge.filter((knowledge) => knowledge.condition && evaluateCondition(knowledge.condition, worldState)).forEach((knowledge) => tags.push(getRandomElement(knowledge.lines)));
+      const allDecorators = defaultDecorators.concat(decorators);
+      const questionData = this.decorate("question", context.question, allDecorators);
+      const personaData = this.decorate("persona", context.persona, allDecorators);
+      const jobData = config.job_in_chat ? void 0 : this.decorate("job", context.job, allDecorators);
+      const answerData = this.decorate("answer", context.answer, allDecorators);
+      const messageData = this.decorate("message", context.message, allDecorators);
+      const quoteData = this.decorate("quote", context.quote, allDecorators);
+      const epilogueData = this.decorate("epilogue", context.epilogue, allDecorators);
+      const chatData = this.decorate("chat", context.chat, allDecorators);
+      const textData = this.decorate("text", context.text, allDecorators);
+      const paragraphData = this.decorate("paragraph", context.paragraph, allDecorators);
+      const inputData = textData || paragraphData || this.decorate("text", context.input, allDecorators);
+      ;
+      logger.debug("context", { ...context });
+      logger.debug("input data", context.query()?.substring(0, 250));
+      const moodData = companion.mood.prompt;
+      const otherCompanions = context.companions.filter((c) => c.configuration.kind != "shell" && c.id != companion.id).map((c) => c.configuration.description);
+      const companionList = otherCompanions && otherCompanions.join("\n");
+      const isAction = context.action != void 0;
+      const knowledgeData = isAction ? void 0 : this.decorate("knowledge", tags.join("\n"), allDecorators);
+      const situationData = isAction ? void 0 : companion.configuration.situations?.find((s) => s.id == context.situation)?.prompt;
+      const companionData = isAction ? void 0 : companionList && this.decorate("companionNames", companionList, allDecorators);
+      const currentTimeData = isAction ? void 0 : "It is currently " + unixTimestampToDate(Date.now());
+      const system_prompt = new Prompt("").append(companion.getBasePrompt()).append(personaData || situationData).append(currentTimeData).append(companionData).append(knowledgeData).append(moodData).append(jobData).append(inputData).append(messageData).append(answerData).append(questionData).append(quoteData).append(chatData).append(epilogueData);
+      const chat = [];
+      let cutoff = 0;
+      if (history && history.length > 0 && !answerData && !epilogueData && !jobData && !chatData) {
+        const username = worldState.find((w) => w.key == "USERNAME")?.value;
+        history.filter((m) => m.companion.configuration.kind != "shell").forEach((line) => chat.push(
+          {
+            role: line.companion.id == "you" ? !returnChat && username && typeof username == "string" ? username : "user" : line.companion.id == companion.id ? "assistant" : !returnChat ? line.companion.configuration.name : "user",
+            content: this.sanitize(line.message)
+          }
+        ));
+        let budget = config.max_prompt_length - system_prompt.prompt.length - 255;
+        chat.reverse().every((entry, index) => {
+          budget -= entry.content.length + entry.role.length + 6;
+          if (budget < 0) {
+            cutoff = index;
+            return false;
+          }
+          return true;
+        });
+      }
+      const start = 0;
+      const end = cutoff !== 0 ? cutoff : history?.length;
+      const cleaned_chat = [{ role: config.system_role_allowed ? "system" : "user", content: this.sanitize(system_prompt.prompt) }, ...chat.slice(start, end).reverse()];
+      const job = context.job;
+      if (config.job_in_chat && job) {
+        cleaned_chat.push({ role: "user", content: this.sanitize(job) });
+      }
+      if (returnChat) {
+        return cleaned_chat;
+      }
+      const name = "assistant";
+      let template = promptTemplate?.chat_template || companion.configuration.modelConfig?.extra?.template?.chat_template;
+      return this.renderPrompt(name, cleaned_chat, template ? new Template(template) : void 0);
+    };
+    this.template = new Template(config.chat_template);
+    this.config = config;
+  }
+};
+
 // src/drama.ts
 var Drama = class _Drama {
-  constructor(companionConfigs, database, worldState, kyInstance, additionalOptions) {
+  constructor(companionConfigs, database, worldState, kyInstance, additionalOptions, chatModeOverride) {
     this.companions = [];
     this.worldState = [];
     this.jobs = [];
     this.chats = [];
     this.reset = async () => {
-      console.log("DRAMA ENGINE // RESET");
+      logger.info("DRAMA ENGINE // RESET");
       this.jobs = [];
       await this.database.reset();
-      await this.database.setCompanions(this.companions);
+      await this.database.initCompanionStats(this.companions);
     };
     /* WORLD STATE MANAGEMENT */
     this.increaseWorldStateEntry = async (key, value) => {
@@ -1156,8 +1217,7 @@ var Drama = class _Drama {
         remoteID: "",
         timeStamp: Date.now()
       };
-      console.log("new job: ");
-      console.log(job);
+      logger.debug("new job: ", job);
       this.jobs.push(job);
     };
     this.setJobState = (id, state) => {
@@ -1175,14 +1235,14 @@ var Drama = class _Drama {
       this.jobs = this.jobs.filter((j) => j.id != id);
     };
     /* PROMPT */
-    this.getPrompt = (companion, history, context, decorators = [], config = this.model.promptConfig) => {
-      return this.prompter.assemblePrompt(companion, this.worldState, context, history, decorators, config);
+    this.getInput = (companion, history, context, decorators = [], config = this.model.promptConfig) => {
+      return this.prompter.assemblePrompt(companion, this.worldState, context, history, decorators, config, void 0, this.chatMode);
     };
     /* INFERENCES */
     this.runJob = async (job) => {
       const response = await this.model.runJob(job, this.instance, this.additionalOptions);
       response && job.context.addUsage(response);
-      console.info("runJob", job, "-->", response);
+      logger.debug("runJob", job, "-->", response);
       await this.increaseWorldStateEntry("INPUT_TOKENS", job.context.input_tokens);
       await this.increaseWorldStateEntry("OUTPUT_TOKENS", job.context.output_tokens);
       if (job.context.action && job.context.recipient)
@@ -1190,6 +1250,7 @@ var Drama = class _Drama {
       await this.database.addPromptEntry({
         timeStamp: Date.now(),
         prompt: job.prompt || "No prompt found",
+        messages: job.messages,
         result: response?.response || "NONE",
         config: JSON.stringify(job.modelConfig)
       });
@@ -1197,7 +1258,7 @@ var Drama = class _Drama {
     };
     /* CHATS */
     this.restoreChats = (chatRecords) => {
-      chatRecords?.forEach(async (chatRecord) => await this.database.addChatEntry(chatRecord));
+      chatRecords?.forEach(async (chatRecord) => await this.database.overwriteChats(chatRecord));
       this.chats.forEach(async (chat) => {
         let chatRecord;
         if (chatRecords && chatRecords.length > 0) {
@@ -1232,12 +1293,12 @@ var Drama = class _Drama {
         existingChat.companions = chatCompanions;
         existingChat.maxRounds = maxRounds;
         existingChat.speakerSelection = speakerSelection;
-        console.log("Reconfiguring existing chat: " + existingChat.id);
+        logger.debug("Reconfiguring existing chat: " + existingChat.id);
         return existingChat;
       }
       const chat = new Chat(this, id, situation, chatCompanions, maxRounds, speakerSelection);
       this.chats.push(chat);
-      console.log("New chat: " + chat.id);
+      logger.info("New chat: " + chat.id);
       return chat;
     };
     this.removeChat = (id) => {
@@ -1263,7 +1324,7 @@ var Drama = class _Drama {
       while (activeSpeakers.length && rounds >= 0) {
         const activeSpeaker = activeSpeakers.pop();
         if (activeSpeaker && activeSpeaker.configuration.kind != "user") {
-          console.log("Setting active speaker", activeSpeaker);
+          logger.info("Setting active speaker", activeSpeaker);
           activeSpeaker.status = "active";
           rounds--;
           if (context.action)
@@ -1285,13 +1346,13 @@ var Drama = class _Drama {
           lastSpeaker = activeSpeaker;
           if (context.question) chat.currentContext = context;
         } else {
-          await this.database.logChat(chat.id, chat.history);
+          await this.database.writeChat(chat.id, chat.history);
           await this.syncInteractions();
           context = await this.runTriggers(context, callback);
           return [chat, lastSpeaker, activeSpeaker, context];
         }
       }
-      await this.database.logChat(chat.id, chat.history);
+      await this.database.writeChat(chat.id, chat.history);
       await this.syncInteractions();
       context = await this.runTriggers(context, callback);
       return [chat, lastSpeaker, void 0, context];
@@ -1316,8 +1377,7 @@ var Drama = class _Drama {
               if (!trigger.effect) continue;
               if (trigger.effect.tag == "event" && trigger.effect.value && typeof trigger.effect.value == "string") {
                 await this.setWorldStateEntry(trigger.effect.value, true);
-                console.log("Setting event " + trigger.effect.value);
-                console.log(trigger.condition);
+                logger.info("Setting event " + trigger.effect.value + " with condition " + trigger.condition);
               } else if (trigger.effect.tag == "action" && trigger.effect.value && typeof trigger.effect.value == "string") {
                 const companionChat = this.getCompanionChat(companion);
                 if (!companionChat) return context;
@@ -1334,13 +1394,13 @@ var Drama = class _Drama {
                     if (typeof trigger.effect.value == "number")
                       await this.increaseWorldStateEntry(trigger.effect.tag, trigger.effect.value);
                     else
-                      console.error("Operation '" + trigger.action + "' needs a value in the condition that is number!");
+                      logger.error("Operation '" + trigger.action + "' needs a value in the condition that is number!");
                     break;
                   default:
-                    console.error("Operation '" + trigger.action + "' is not implemented yet!");
+                    logger.error("Operation '" + trigger.action + "' is not implemented yet!");
                 }
               } else {
-                console.error("Triggers with operation '" + trigger.action + "' can only operate on a world state or send an event. Also it needs a value set in the condition.");
+                logger.error("Triggers with operation '" + trigger.action + "' can only operate on a world state or send an event. Also it needs a value set in the condition.");
               }
             }
           }
@@ -1349,17 +1409,61 @@ var Drama = class _Drama {
       return context;
     };
     this.worldState = worldState;
-    this.model = new Model();
+    const apiEndpoint = process.env.DE_ENDPOINT_URL || process.env.NEXT_PUBLIC_DE_ENDPOINT_URL || "v1/completions";
+    this.chatMode = chatModeOverride === void 0 ? apiEndpoint.includes("chat/completions") : chatModeOverride;
+    this.model = new Model(apiEndpoint);
     this.prompter = new Prompter(this.model.promptTemplate);
     this.instance = kyInstance;
     this.database = database;
     this.additionalOptions = additionalOptions;
     this.companions = companionConfigs.map((c) => new c.class(c, this));
-    console.log("DRAMA ENGINE // INITIATED");
+    logger.info("DRAMA ENGINE // INITIATED");
     return this;
   }
-  static async initialize(defaultSituation, companionConfigs, kyInstance = ky, database, additionalOptions) {
+  static isAuthTokenAvailable(headersInit) {
+    if (headersInit) {
+      const headers = new Headers(headersInit);
+      const authHeaderExists = (headers?.get("authorization")?.length || 0) > 0;
+      const apiKeyHeaderExists = (headers?.get("x-api-key")?.length || 0) > 0;
+      const authTokenHeaderExists = (headers?.get("x-auth-token")?.length || 0) > 0;
+      return authHeaderExists || apiKeyHeaderExists || authTokenHeaderExists;
+    }
+    return false;
+  }
+  static checkAddlOptions(additionalOptions) {
+    let addlOptionsWithPrefix = additionalOptions || {};
+    if (addlOptionsWithPrefix?.prefixUrl === void 0) {
+      addlOptionsWithPrefix = {
+        prefixUrl: process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "",
+        ...addlOptionsWithPrefix
+      };
+    }
+    const authTokenAvailable = this.isAuthTokenAvailable(additionalOptions?.headers);
+    if (!authTokenAvailable) {
+      let apiKey = process.env.DE_BACKEND_API_KEY;
+      if (!apiKey) {
+        apiKey = process.env.NEXT_PUBLIC_DE_BACKEND_API_KEY;
+        if (apiKey) {
+          logger.warn("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure this was intended behaviour.");
+        } else {
+          logger.warn("No API keys were found. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token. And the following variables: DE_BACKEND_API_KEY, NEXT_PUBLIC_DE_BACKEND_API_KEY. Ensure this was intended behaviour.");
+        }
+      }
+      addlOptionsWithPrefix = {
+        ...addlOptionsWithPrefix,
+        headers: {
+          ...apiKey ? {
+            "Authorization": `Bearer ${apiKey}`
+          } : {},
+          ...addlOptionsWithPrefix?.headers
+        }
+      };
+    }
+    return addlOptionsWithPrefix;
+  }
+  static async initialize(defaultSituation, companionConfigs, kyInstance = ky, database, additionalOptions, chatModeOverride) {
     const worldState = await database.world() || [];
+    const newAddlOptions = this.checkAddlOptions(additionalOptions);
     if (!companionConfigs.find((c) => c.kind == "user"))
       companionConfigs = [
         ...companionConfigs,
@@ -1373,7 +1477,7 @@ var Drama = class _Drama {
           kind: "user"
         }
       ];
-    const drama = new _Drama(companionConfigs, database, worldState, kyInstance, additionalOptions);
+    const drama = new _Drama(companionConfigs, database, worldState, kyInstance, newAddlOptions, chatModeOverride);
     drama.companions.forEach((companion) => {
       const interactions = worldState.find((w) => w.key == "COMPANION_INTERACTIONS_" + companion.id.toUpperCase());
       if (interactions && typeof interactions.value == "number")
@@ -1403,55 +1507,6 @@ var Drama = class _Drama {
     return drama;
   }
 };
-
-// src/companions/instruction-deputy.ts
-var _InstructionDeputy = class _InstructionDeputy extends Deputy {
-  constructor(configuration = _InstructionDeputy.config, drama) {
-    super(configuration, drama);
-    this.runAction = async (chat, context, recipient, sender) => {
-      const input = context.query();
-      if (!input || input.length < 5) {
-        context.job = "Explain your purpose to the user and that the user has to select some text before you can do your job.";
-        return [true, context];
-      }
-      context.job = this.configuration.job;
-      return [true, context];
-    };
-    this.replyFunctions.push({ trigger: "*", replyFunction: this.runAction });
-    return this;
-  }
-};
-_InstructionDeputy.config = {
-  name: "Barclay",
-  class: _InstructionDeputy,
-  description: "This deputy sets a job for the companion to act out.",
-  base_prompt: "",
-  kind: "shell",
-  temperature: 0
-};
-var InstructionDeputy = _InstructionDeputy;
-
-// src/companions/test-deputy.ts
-var _TestDeputy = class _TestDeputy extends Deputy {
-  constructor(configuration = _TestDeputy.config, drama) {
-    super(configuration, drama);
-    this.runAction = async (chat, context, recipient, sender) => {
-      console.log("TEST DELEGATE CONTEXT", context);
-      return [true, context];
-    };
-    this.replyFunctions.push({ trigger: "*", replyFunction: this.runAction });
-    return this;
-  }
-};
-_TestDeputy.config = {
-  name: "Kirk",
-  class: _TestDeputy,
-  description: "Just for testing",
-  base_prompt: "",
-  kind: "shell",
-  temperature: 0
-};
-var TestDeputy = _TestDeputy;
 export {
   AutoCompanion,
   Chat,
@@ -1464,6 +1519,7 @@ export {
   Model,
   ModelError,
   TestDeputy,
+  defaultModelConfig,
   defaultPromptConfig,
   defaultPromptTemplates,
   getRandomElement,
