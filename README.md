@@ -27,23 +27,6 @@ npm i @write-with-laika/drama-engine
 
 ## Configuration
 
-### Environment variables
-
-The library is provider agnostic as long as the LLM service you are using support the OpenAI API standard.
-As of this writing, the library only supports the `/v1/completions` endpoint and not the chat `/v1/chat/completions` endpoint as it requires a different request payload.
-
-The possible environment variables are:
-- `DE_BASE_URL` - The base url for the provider. Default: `<empty>`
-- `DE_ENDPOINT_URL` - The endpoint for the provider. Default: `/v1/completions`
-- `DE_BACKEND_API_KEY` - The API key for the provider. If provided, all requests will include `Bearer: <DE_BACKEND_API_KEY>` in the `Authentication` header. Default: `<empty>`
-- `DE_LOG_LEVEL` - The log level for the provider. Default: `info`
-
-Please refer to the commented `env.template` for more details. You can copy this as `.env` and use the library.
-
-NOTE: Depending on your provider backend, CORS might be required. The library does not handle these.
-
-Additionally, if you are using this library publicly and client-side, it's recommended to handle the requests in a middleware service such as Cloudflare, Vercel, etc. so that the API key is not exposed to the client. This library does not differentiate between server-side and client-side usage, so you should handle this appropriately.
-
 ### Database
 
 This library was developed to power our live product, [Writers Room](https://wr.writewithlaika.com), where we utilise the browsers IndexedDB API to store and manage states and data.
@@ -51,6 +34,46 @@ This library was developed to power our live product, [Writers Room](https://wr.
 When we decided to open source this package, we realised we needed to ship this with a generic database interface to manage the data. Therefore, we provide a minimal database interface which you can extend with your own functions. Have a look at `./tests/config/db.ts` for an example of an in-memory database.
 
 If you believe the interface can be improved, we welcome your contributions or feel free to reach out to us.
+
+### Environment variables
+
+The library is provider agnostic as long as the LLM service you are using supports the OpenAI API standard.
+The library supports both the `/v1/completions` endpoint (that uses `prompt` string as LLM input) and the chat `/v1/chat/completions` endpoint (that uses `messages` array as LLM input).
+
+The possible environment variables are:
+- `DE_BASE_URL` - The base url for the provider. Default: `<empty>`
+- `DE_ENDPOINT_URL` - The endpoint for the provider. Default: `v1/completions`
+- `DE_BACKEND_API_KEY` - The API key for the provider. If provided, all requests will include `Bearer: <DE_BACKEND_API_KEY>` in the `Authorization` header. Default: `<empty>`
+- `DE_LOG_LEVEL` - The log level for the provider. Default: `info`
+
+For convenience, all the environment variables "public" variants (that are exposed client-side) will also be checked/used during initialisation, i.e., the `NEXT_PUBLIC_` prefix variants: `NEXT_PUBLIC_DE_BASE_URL`, `NEXT_PUBLIC_DE_ENDPOINT_URL`, `NEXT_PUBLIC_DE_BACKEND_API_KEY`, and, `NEXT_PUBLIC_DE_LOG_LEVEL`.
+
+Please copy `.env.template` as `.env`, set your values, and, start using the library.
+
+**NOTE**: Depending on your provider backend, CORS might be required. The library does not handle these.
+
+### Drama Engine Initialisation
+
+The drama engine accepts a few configuration options while initialisation.
+
+- `defaultSituation`: The initial situation for the companion when they are initialised.
+- `companionConfigs`: A list of companion configs. An example is provided below and in `/tests`.
+- `kyInstance`: An optional [Ky](https://github.com/sindresorhus/ky/) instance. We use Ky as our default HTTP client as it supports nice features like caching, redirects, retries, etc. out of the box. You can provide your own instance if needed else it will use the default one.
+- `database`: A database interface. A minimal in-memory database is provided in `tests`.
+- `additionalOptions`: An `Options` object from `Ky`. You can set your own additional headers, retry options, etc. here. Refer to `Ky` documentation for more info.
+- `chatModeOverride`: An optional `boolean` variable. Default `false`. By default, if the value of `DE_ENDPOINT_URL` contains `chat/completions`, the library will switch to "chat" mode and use the `messages` array as the LLM input. If your endpoint is different, you can override this behaviour by passing a different value here.
+
+### Note on Authorization / API keys
+
+If a `kyInstance` or `additionalOptions` is provided, the library will check the following headers for API keys: `x-api-key`, `x-auth-token`, `authorization`.
+
+Only when one of the above is not found, the library checks the `DE_BACKEND_API_KEY` for an API key or token and sets it as a `Bearer` token in the `Authorization` header.
+
+If none are found, a warning is issued.
+
+If your provider uses a different header(s), you can pass it via `additionalOptions` and safely ignore the warning.
+
+**NOTE**: If you are a service provider using this library (esp. on client-side), it's recommended to handle outgoing requests using a middleware service such as Cloudflare, Vercel, etc. so that the API key is not exposed publicly. This library does not differentiate between server-side and client-side usage, so you should handle this appropriately.
 
 ## Tests
 
@@ -164,11 +187,13 @@ The link between companions and the work of the user is established using two ki
 
 The `Context` class is huge but well documented. The actual act of prompting the language model packs the context and a model configuration (plus some administrative data) into a job that gets turned into a query for the model. That means all information needed to create the prompt is in the context. That information ranges from who’s the speaker to what their job is at this moment, to all the data from the user, to who else is in the room, and so on. Some information (e.g. the mood) is added by the companion before it passes the context on. If the companion delegates the action, it might also add information for the delegate. The delegate writes their reply into the context (potentially after an inference) and the companion reads it from there before acting on it.
 
-### Prompt assembly
+### Preparing inputs to the LLM
 
-All prompts are assembled on the fly depending on the context. This happens in the `assemblePrompt` function in the `Prompter` class. The prompter takes the `Context` object, the world state database and transforms them into a prompt using decorators and other mechanisms. Decorators are simple replacement-based templates that are used to tag specific pieces of information for referencing them in a job. E.g. we’re using the decorator `USER TEXT=\"{{DATA}}\"."` to label the user-provided textual data as `USER TEXT`, so a job can say “Summarise the USER TEXT” and the model will understand where to find the text in most cases. The prompter also adds some default information like the current data and time.
+Depending on whether the endpoint is `chat/completions` type or not i.e, the value of `chatMode`, the library decides whether to use `prompt` or `messages` as inputs to the LLM.
 
-The final prompt format (e.g. ChatML) is applied in a second step where the model uses a template to convert the prompt data to the right format.
+This is performed on the fly depending on the context in the `assemblePrompt` function of the `Prompter` class. The function takes a `Context` object, the world state database, and, generates a list of `messages` using decorators and other mechanisms. If the function's `returnChat` value is `true` or `(drama|chat.drama).chatMode` is set to `true`, the list of messages are returned as is to be used directly with the `chat/completions` endpoint. Otherwise, the function applies the model's (or job's) template (e.g., ChatML) to tranform these messages into a single `prompt` string.
+
+Decorators are simple replacement-based templates that are used to tag specific pieces of information for referencing them in a job. E.g. the decorator `USER TEXT=\"{{DATA}}\"."` is used to label the user-provided textual data as `USER TEXT`, so a job can use “Summarise the USER TEXT” as part of an instruction/prompt and the model will know where to find the text (in most cases). The prompter also adds some default information like the current data and time.
 
 ### Delegation and actions
 
