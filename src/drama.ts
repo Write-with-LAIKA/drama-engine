@@ -12,6 +12,7 @@ import { Job, JobStatus } from "./job";
 import { Model } from "./model";
 import { Prompter } from "./prompter";
 import { logger } from "./utils/logging-utils";
+import { KyHeadersInit } from "ky/distribution/types/options";
 
 export class Drama {
 	model: Model;
@@ -51,6 +52,54 @@ export class Drama {
 		return this;
 	}
 
+	private static isAuthTokenAvailable(headersInit?: KyHeadersInit): boolean {
+		if (headersInit) {
+			const headers = new Headers(headersInit as HeadersInit);
+
+			const authHeaderExists = (headers?.get("authorization")?.length || 0) > 0;
+			const apiKeyHeaderExists = (headers?.get("x-api-key")?.length || 0) > 0;
+			const authTokenHeaderExists = (headers?.get("x-auth-token")?.length || 0) > 0;
+
+			return authHeaderExists || apiKeyHeaderExists || authTokenHeaderExists;
+		}
+		return false;
+	}
+
+	private static checkAddlOptions(additionalOptions?: Options): Options {
+		let addlOptionsWithPrefix: Options = additionalOptions || {};
+
+		if (addlOptionsWithPrefix?.prefixUrl === undefined) {
+			addlOptionsWithPrefix = {
+				prefixUrl: process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "",
+				...addlOptionsWithPrefix,
+			};
+		}
+
+		const authTokenAvailable = this.isAuthTokenAvailable(additionalOptions?.headers);
+
+		if (!authTokenAvailable) {
+			logger.debug("Auth token could not be detected. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token.");
+
+			let apiKey = process.env.DE_BACKEND_API_KEY;
+			!apiKey && logger.warning("The value of `DE_BACKEND_API_KEY` is empty. Ensure your API is unauthenticated.");
+
+			apiKey = process.env.NEXT_PUBLIC_DE_BACKEND_API_KEY;
+			apiKey && logger.warning("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure that this was intended.");
+
+			addlOptionsWithPrefix = {
+				...addlOptionsWithPrefix,
+				headers: {
+					...(apiKey ? {
+						'Authorization': `Bearer ${apiKey}`,
+					} : {}),
+					...addlOptionsWithPrefix?.headers,
+				},
+			};
+		}
+
+		return addlOptionsWithPrefix;
+	}
+
 	static async initialize(defaultSituation: string,
 		companionConfigs: CompanionConfig[],
 		kyInstance: KyInstance = ky,
@@ -59,6 +108,7 @@ export class Drama {
 		chatModeOverride?: boolean,
 	) {
 		const worldState = await database.world() || [];
+		const newAddlOptions: Options = this.checkAddlOptions(additionalOptions);
 
 		// Add the user if there is none
 		if (!companionConfigs.find(c => c.kind == "user"))
@@ -75,7 +125,7 @@ export class Drama {
 				},
 			];
 
-		const drama = new Drama(companionConfigs, database, worldState, kyInstance, additionalOptions, chatModeOverride);
+		const drama = new Drama(companionConfigs, database, worldState, kyInstance, newAddlOptions, chatModeOverride);
 
 		// load interactions counters
 		drama.companions.forEach(companion => {
