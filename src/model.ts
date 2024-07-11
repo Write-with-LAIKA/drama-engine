@@ -142,61 +142,58 @@ export class Model {
 	 * @memberof Model
 	 */
 	private buildResponseFromStream = async (response: Response) => {
-		const reader = response.body?.getReader();
-		if (!reader) {
-			throw new Error('Response body is not readable.');
-		}
+		// Mostly taken from https://stackoverflow.com/a/75751803
 
-		let buffer = '';
+		let buffer: string = '';
 		let completeResponse: string[] = []
 		let completedData: any = null;
 
-		const processTextStreamChunk = (chunk: Uint8Array) => {
-			buffer += new TextDecoder('utf-8').decode(chunk);
-			const lines = buffer.split('\r\n');
-
-			for (let i = 0; i < lines.length - 1; i++) {
-				const line = lines[i].trim();
-
-				if (!line) continue;
-
-				if (line.startsWith('data:')) {
-					const dataMessage = line.substring(5).trim();
-					// logger.debug(`Data: ${dataMessage}\n`);
-					if (dataMessage && dataMessage !== '[DONE]') {
-						try {
-							const dataObject = JSON.parse(dataMessage);
-							completedData = dataObject;
-							/**
-							 * NOTE: In streaming, `dataObject.choices[0]?.text` contains a single token.
-							 *
-							 * If streaming directly to UI components, this object can be used instead
-							 * of waiting for the response to end.
-							 */
-							completeResponse.push(dataObject.choices[0]?.text)
-						} catch (error) {
-							logger.error('Error parsing JSON:', error);
-							throw new Error("JSON Parsing error.")
-						}
-					}
-					continue;
-				}
-			}
-
-			buffer = lines[lines.length - 1];
+		const reader = response.body?.pipeThrough(new TextDecoderStream()).getReader();
+		if (!reader) {
+			throw new Error('Response body is unreadable or cannot be decoded as text.');
 		};
 
 		while (true) {
+			let dataDone = false;
 			const { done, value } = await reader.read();
 
-			if (done) {
+			if (done || dataDone) {
 				if (completedData) {
-					completedData.choices[0].text = completeResponse.join('');
+					completedData.response = completeResponse.join('');
 					return completedData;
 				}
 				throw new Error("Error in response stream or incomplete stream received.")
 			}
-			processTextStreamChunk(value!);
+
+			buffer += value;
+			const lines = buffer.split('\n');
+
+			lines.forEach((data) => {
+				const line = data.trim();
+
+				if (!line) return;
+				if (!line.startsWith('data:')) return;
+				if (line === 'data: [DONE]') return;
+
+				const dataMessage = line.substring(5).trim();
+				logger.debug(`Data: ${dataMessage}\n`);
+
+				try {
+					const dataObject = JSON.parse(dataMessage);
+					completedData = dataObject;
+
+					/**
+					 * NOTE:
+					 * In a streaming response, `responseChunk` will contain a single token.
+					 * If streaming directly to UI components, yield every `responseChunk`.
+					 */
+					const responseChunk: string = dataObject.choices[0]?.text || dataObject.choices[0]?.delta?.content || '';
+					completeResponse.push(responseChunk);
+					buffer = '';
+				} catch (error) {
+					logger.debug('Received non-JSON stream chunk:', line);
+				}
+			});
 		}
 
 	};
@@ -206,6 +203,8 @@ export class Model {
 
 		const contentType = response.headers.get('content-type');
 		const responseIsStream = contentType && contentType.includes('text/event-stream')
+
+		logger.debug("Response is of type " + contentType);
 
 		if (!responseIsStream) {
 			jsonResponse = await response.json();
