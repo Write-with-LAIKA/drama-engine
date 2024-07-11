@@ -11,5 +11,5 @@ export const logger = {
     info: shouldLog('info') ? console.info : () => { },
     error: !shouldLog('off') ? console.error : () => { },
     debug: shouldLog('debug') ? console.debug : () => { },
-    warning: (shouldLog('info') || shouldLog('warning')) ? console.warn : () => { },
+    warn: (shouldLog('info') || shouldLog('warning')) ? console.warn : () => { },
 }

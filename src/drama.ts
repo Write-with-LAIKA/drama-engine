@@ -81,10 +81,10 @@ export class Drama {
 			logger.debug("Auth token could not be detected. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token.");
 
 			let apiKey = process.env.DE_BACKEND_API_KEY;
-			!apiKey && logger.warning("The value of `DE_BACKEND_API_KEY` is empty. Ensure your API is unauthenticated.");
+			!apiKey && logger.warn("The value of `DE_BACKEND_API_KEY` is empty. Ensure your API is unauthenticated.");
 
 			apiKey = process.env.NEXT_PUBLIC_DE_BACKEND_API_KEY;
-			apiKey && logger.warning("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure that this was intended.");
+			apiKey && logger.warn("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure that this was intended.");
 
 			addlOptionsWithPrefix = {
 				...addlOptionsWithPrefix,
