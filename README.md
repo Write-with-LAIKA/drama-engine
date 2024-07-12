@@ -8,7 +8,7 @@ A library for agent orchestration
 
 The Drama Engine is a framework for agentic interaction with language models. It is written in TypeScript to execute in any browser. The Drama Engine is model- and provider-agnostic. We’ve built the Drama Engine for use in our Writers Room and that makes it focused on working with text but it can be used for any multi-participant chat.
 
-### Core features:
+### Core features
 
 - Multi-agent workflows with delegation
 - Dynamic prompt assembly
@@ -41,6 +41,7 @@ The library is provider agnostic as long as the LLM service you are using suppor
 The library supports both the `/v1/completions` endpoint (that uses `prompt` string as LLM input) and the chat `/v1/chat/completions` endpoint (that uses `messages` array as LLM input).
 
 The possible environment variables are:
+
 - `DE_BASE_URL` - The base url for the provider. Default: `<empty>`
 - `DE_ENDPOINT_URL` - The endpoint for the provider. Default: `v1/completions`
 - `DE_BACKEND_API_KEY` - The API key for the provider. If provided, all requests will include `Bearer: <DE_BACKEND_API_KEY>` in the `Authorization` header. Default: `<empty>`
