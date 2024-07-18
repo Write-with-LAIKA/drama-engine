@@ -144,8 +144,8 @@ declare class Drama {
     chats: Chat[];
     private constructor();
     private static isAuthTokenAvailable;
-    private static checkAddlOptions;
-    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], kyInstance: KyInstance | undefined, database: Database, additionalOptions?: Options, chatModeOverride?: boolean): Promise<Drama>;
+    private static checkAdditionalOptions;
+    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], kyInstance?: KyInstance, database?: Database, additionalOptions?: Options, chatModeOverride?: boolean): Promise<Drama>;
     reset: () => Promise<void>;
     increaseWorldStateEntry: (key: string, value: number) => Promise<void>;
     setWorldStateEntry: (key: string, value: StateTypes) => Promise<void>;

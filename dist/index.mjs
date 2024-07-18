@@ -1483,12 +1483,12 @@ var Drama = class _Drama {
     }
     return false;
   }
-  static checkAddlOptions(additionalOptions) {
-    let addlOptionsWithPrefix = additionalOptions || {};
-    if (addlOptionsWithPrefix?.prefixUrl === void 0) {
-      addlOptionsWithPrefix = {
+  static checkAdditionalOptions(additionalOptions) {
+    let additionalOptionsWithPrefix = additionalOptions || {};
+    if (additionalOptionsWithPrefix?.prefixUrl === void 0) {
+      additionalOptionsWithPrefix = {
         prefixUrl: process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "",
-        ...addlOptionsWithPrefix
+        ...additionalOptionsWithPrefix
       };
     }
     const authTokenAvailable = this.isAuthTokenAvailable(additionalOptions?.headers);
@@ -1502,21 +1502,21 @@ var Drama = class _Drama {
           logger.warn("No API keys were found. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token. And the following variables: DE_BACKEND_API_KEY, NEXT_PUBLIC_DE_BACKEND_API_KEY. Ensure this was intended behaviour.");
         }
       }
-      addlOptionsWithPrefix = {
-        ...addlOptionsWithPrefix,
+      additionalOptionsWithPrefix = {
+        ...additionalOptionsWithPrefix,
         headers: {
           ...apiKey ? {
             "Authorization": `Bearer ${apiKey}`
           } : {},
-          ...addlOptionsWithPrefix?.headers
+          ...additionalOptionsWithPrefix?.headers
         }
       };
     }
-    return addlOptionsWithPrefix;
+    return additionalOptionsWithPrefix;
   }
-  static async initialize(defaultSituation, companionConfigs, kyInstance = ky, database, additionalOptions, chatModeOverride) {
+  static async initialize(defaultSituation, companionConfigs, kyInstance = ky, database = new InMemoryDatabase(), additionalOptions, chatModeOverride) {
     const worldState = await database.world() || [];
-    const newAddlOptions = this.checkAddlOptions(additionalOptions);
+    const newAdditionalOptions = this.checkAdditionalOptions(additionalOptions);
     if (!companionConfigs.find((c) => c.kind == "user"))
       companionConfigs = [
         ...companionConfigs,
@@ -1530,7 +1530,7 @@ var Drama = class _Drama {
           kind: "user"
         }
       ];
-    const drama = new _Drama(companionConfigs, database, worldState, kyInstance, newAddlOptions, chatModeOverride);
+    const drama = new _Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, chatModeOverride);
     drama.companions.forEach((companion) => {
       const interactions = worldState.find((w) => w.key == "COMPANION_INTERACTIONS_" + companion.id.toUpperCase());
       if (interactions && typeof interactions.value == "number")

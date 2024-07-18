@@ -11,8 +11,7 @@ test('API key is available', () => {
 });
 
 test('Initialised drama engine correctly', async () => {
-	const db: InMemoryDatabase = new InMemoryDatabase();
-	const drama = await Drama.initialize("water-cooler", testCompanionConfigs, undefined, db);
+	const drama = await Drama.initialize("water-cooler", testCompanionConfigs);
 	expect({
 		value: drama,
 		description: 'Drama engine initialised correctly',
