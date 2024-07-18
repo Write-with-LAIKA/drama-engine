@@ -203,9 +203,9 @@ Specific speakers can be excluded from the list of allowed speakers. Repeat repl
 
 ### Databases
 
-While the Drama Engine maintains its state internally, it is very often necessary to connect an external database, for example for persistant storage.
+While the Drama Engine maintains its state internally, it is very often necessary to connect an external database, for example for persistent storage.
 
-This library was developed to power our live product, [Writers Room](https://wr.writewithlaika.com), where we utilise the browsers IndexedDB API to store and manage states and data. When we decided to open source this package, we realised we needed to ship this with a generic database interface. The in-memory database can be found in `database/in-memory-database.ts` and is the default database unless you override it during drama initialisation.
+This library was developed to power our live product, [Writers Room](https://wr.writewithlaika.com), where we utilise the browsers IndexedDB API to store and manage states and data. When we decided to open source this package, we realised we needed to ship this with a generic database interface. The in-memory database can be found in `db/in-memory-database.ts` and is the default database unless you override it during drama initialisation. Databases have to conform to the interface defined in `db/database.ts`.
 
 ## 🛸 Intended Use
 
