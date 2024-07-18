@@ -222,3 +222,16 @@ Finally, reply functions allow for a wide range of customisation of companion be
 ## 🏆 Contributing
 
 Pull requests and feature requests are very welcome.
+
+## Citation
+
+If you want to cite the Drama Engine in a paper, you can use the following BibTex:
+
+```
+@software{pichlmairmartinDramaEngine2024,
+  title = {Drama {{Engine}}},
+  author = {{Pichlmair, Martin} and {Raj, Riddhi}},
+  year = {2024},
+  abstract = {A library for agent orchestration}
+}
+```
