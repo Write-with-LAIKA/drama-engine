@@ -67,18 +67,6 @@ If your provider uses a different header(s), you can pass it via `additionalOpti
 
 **WARNING**: If you are a service provider using this library (esp. on client-side), it's recommended to handle outgoing requests using a middleware service such as Cloudflare, Vercel, etc. so that the API key is not exposed publicly. This library does not differentiate between server-side and client-side usage, so you should handle this appropriately.
 
-### Database
-
-This library was developed to power our live product, [Writers Room](https://wr.writewithlaika.com), where we utilise the browsers IndexedDB API to store and manage states and data.
-
-When we decided to open source this package, we realised we needed to ship this with a generic database interface to manage the data. The in-memory database can be found in `database/in-memory-database.ts` and is the default database unless you override it during drama initialisation.
-
-## 📋 Tests
-
-A sample test suite is provided under `./tests/drama.test.ts` that can be run via `npm run test`. Ensure you have all the dev dependencies installed.
-
-Please refer to the test implementations for usage examples.
-
 ## 🚀 Usage
 
 First, configure at least one companion (be careful with newlines – they are retained in the prompt and so is indentation):
@@ -147,6 +135,12 @@ await drama.runConversation(chat, 4, context, undefined, undefined, callback); /
 
 ```
 
+## 📋 Tests
+
+A sample test suite is provided under `./tests/drama.test.ts` that can be run via `npm run test`. Ensure you have all the dev dependencies installed and set up your `.env` with API keys.
+
+Please refer to the test implementations for usage examples.
+
 ## 🧠 Concepts
 
 ### Companions
@@ -206,6 +200,12 @@ The `Drama` object orchestrates all chats. In our next refactoring we will trans
 The moderator currently only selects the next speaker. It selects the right deputy if an action is found, and otherwise supports different ways of scheduling who’s up next. One is round robin, where the baton is passed from person to person. That also works with only the user and a single companion, making sure that the companion returns exactly one reply. Another selection method is just picking a random companion. If another companion was mentioned in the last reply, that companion is automatically picked as the next speaker. The final way of picking a speaker is asking a language model to determine who should speak next by supplying it with the last lines of the chat and a list of chat participants.
 
 Specific speakers can be excluded from the list of allowed speakers. Repeat replies can be disabled, too. Shells (deputies) are not permitted to speak unless as part of an action.
+
+### Databases
+
+While the Drama Engine maintains its state internally, it is very often necessary to connect an external database, for example for persistant storage.
+
+This library was developed to power our live product, [Writers Room](https://wr.writewithlaika.com), where we utilise the browsers IndexedDB API to store and manage states and data. When we decided to open source this package, we realised we needed to ship this with a generic database interface. The in-memory database can be found in `database/in-memory-database.ts` and is the default database unless you override it during drama initialisation.
 
 ## 🛸 Intended Use
 
