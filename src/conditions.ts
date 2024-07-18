@@ -1,4 +1,4 @@
-import { KeyValueRecord, StateTypes } from "./database";
+import { KeyValueRecord, StateTypes } from "./db/database";
 import { logger } from "./utils/logging-utils";
 
 export type Tag = "none" | "event" | "action";

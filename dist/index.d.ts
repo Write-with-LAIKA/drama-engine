@@ -845,7 +845,25 @@ declare class TestDeputy extends Deputy {
     protected runAction: (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion) => Promise<CompanionReply>;
 }
 
+declare class InMemoryDatabase implements Database {
+    private companions;
+    private worldState;
+    private promptEntries;
+    private chatEntries;
+    reset(): Promise<void>;
+    initCompanionStats(companions: Companion[]): Promise<void>;
+    world(): Promise<KeyValueRecord[]>;
+    setWorldStateEntry(key: string, value: StateTypes): Promise<void>;
+    prompts(): Promise<PromptRecord[]>;
+    addPromptEntry(record: PromptRecord): Promise<void>;
+    chats(): Promise<ChatRecord[]>;
+    getChat(chatID: string): Promise<ChatRecord | undefined>;
+    deleteChat(chatID: string): Promise<void>;
+    writeChat(id: string, history: ChatMessage[]): Promise<string>;
+    overwriteChats(items: ChatRecord): Promise<string>;
+}
+
 declare const getRandomElement: (array: any[]) => any;
 declare const randomArrayElement: <T>(array: T[]) => T;
 
-export { AutoCompanion, type Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, Companion, type CompanionConfig, type CompanionKind, type CompanionReply, type CompanionScope, type CompanionState, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, type Database, Deputy, Drama, type HistoryRecord, InstructionDeputy, type Job, type JobStatus, type KeyValueRecord, Model, type ModelConfig, ModelError, type PromptRecord, type StateTypes, type Tag, TestDeputy, type TriggerOperation, defaultModelConfig, defaultPromptConfig, defaultPromptTemplates, getRandomElement, randomArrayElement };
+export { AutoCompanion, type Category, Chat, ChatCompanion, type ChatMessage, type ChatRecord, type ChatSpeakerSelection, Companion, type CompanionConfig, type CompanionKind, type CompanionReply, type CompanionScope, type CompanionState, type Condition, type ConditionalLine, Context, type ContextData, type ContextDataTypes, type ContextDecorator, type Database, Deputy, Drama, type HistoryRecord, InMemoryDatabase, InstructionDeputy, type Job, type JobStatus, type KeyValueRecord, Model, type ModelConfig, ModelError, type PromptRecord, type StateTypes, type Tag, TestDeputy, type TriggerOperation, defaultModelConfig, defaultPromptConfig, defaultPromptTemplates, getRandomElement, randomArrayElement };

@@ -1,6 +1,6 @@
-import { ChatMessage } from "./chat";
-import { Companion } from "./companions/companion";
-import { Messages } from "./model";
+import { ChatMessage } from "../chat";
+import { Companion } from "../companions/companion";
+import { Messages } from "../model";
 
 export type StateTypes = number | string | boolean;
 export type KeyValueRecord = { key: string, value: StateTypes }

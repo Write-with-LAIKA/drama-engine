@@ -4,7 +4,7 @@ import { Companion } from "./companions/companion";
 import { evaluateCondition } from "./conditions";
 import { PromptConfig, PromptTemplate, defaultPromptConfig } from "./config/prompts";
 import { Context, ContextDataTypes, ContextDecorator, defaultDecorators } from "./context";
-import { KeyValueRecord } from "./database";
+import { KeyValueRecord } from "./db/database";
 import { getRandomElement } from "./utils/array-utils";
 import { logger } from "./utils/logging-utils";
 import { unixTimestampToDate } from "./utils/time-utils";

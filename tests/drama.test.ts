@@ -1,6 +1,6 @@
 import { expect, test } from '@jest/globals';
 import { ChatMessage, Context, Drama } from '../src';
-import { InMemoryDatabase } from './config/db';
+import { InMemoryDatabase } from '../src/db/in-memory-database';
 import { testCompanionConfigs } from './config/companions';
 import { streamingModelConfig, testModelConfig } from './config/models';
 

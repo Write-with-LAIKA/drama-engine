@@ -807,6 +807,59 @@ _TestDeputy.config = {
 };
 var TestDeputy = _TestDeputy;
 
+// src/db/in-memory-database.ts
+var InMemoryDatabase = class {
+  constructor() {
+    this.companions = [];
+    this.worldState = {};
+    this.promptEntries = [];
+    this.chatEntries = {};
+  }
+  async reset() {
+    this.companions = [];
+    this.worldState = {};
+    this.promptEntries = [];
+    this.chatEntries = {};
+  }
+  async initCompanionStats(companions) {
+    this.companions = companions;
+  }
+  async world() {
+    return Object.entries(this.worldState).map(([key, value]) => ({ key, value }));
+  }
+  async setWorldStateEntry(key, value) {
+    this.worldState[key] = value;
+  }
+  async prompts() {
+    return this.promptEntries;
+  }
+  async addPromptEntry(record) {
+    this.promptEntries.push(record);
+  }
+  async chats() {
+    return Object.values(this.chatEntries);
+  }
+  async getChat(chatID) {
+    return this.chatEntries[chatID];
+  }
+  async deleteChat(chatID) {
+    delete this.chatEntries[chatID];
+  }
+  async writeChat(id, history) {
+    this.chatEntries[id] = {
+      id,
+      history: history.filter((h) => h.companion.configuration.kind == "npc" || h.companion.configuration.kind == "user").map((h) => {
+        return { companion: h.companion.configuration.name, message: h.message, timeStamp: h.timeStamp };
+      })
+    };
+    return id;
+  }
+  async overwriteChats(items) {
+    this.chatEntries[items.id] = items;
+    return items.id;
+  }
+};
+
 // src/drama.ts
 import ky from "ky";
 import { v4 as uuidv4 } from "uuid";
@@ -1515,6 +1568,7 @@ export {
   Context,
   Deputy,
   Drama,
+  InMemoryDatabase,
   InstructionDeputy,
   Model,
   ModelError,

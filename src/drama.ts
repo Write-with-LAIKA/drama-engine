@@ -7,12 +7,13 @@ import { ActionDescription, Companion, CompanionConfig } from "./companions/comp
 import { evaluateCondition } from "./conditions";
 import { PromptConfig } from "./config/prompts";
 import { Context, ContextDecorator } from "./context";
-import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./database";
+import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./db/database";
 import { Job, JobStatus } from "./job";
 import { Model } from "./model";
 import { Prompter } from "./prompter";
 import { logger } from "./utils/logging-utils";
 import { KyHeadersInit } from "ky/distribution/types/options";
+import { InMemoryDatabase } from "./db/in-memory-database";
 
 export class Drama {
 	model: Model;
@@ -65,13 +66,13 @@ export class Drama {
 		return false;
 	}
 
-	private static checkAddlOptions(additionalOptions?: Options): Options {
-		let addlOptionsWithPrefix: Options = additionalOptions || {};
+	private static checkAdditionalOptions(additionalOptions?: Options): Options {
+		let additionalOptionsWithPrefix: Options = additionalOptions || {};
 
-		if (addlOptionsWithPrefix?.prefixUrl === undefined) {
-			addlOptionsWithPrefix = {
+		if (additionalOptionsWithPrefix?.prefixUrl === undefined) {
+			additionalOptionsWithPrefix = {
 				prefixUrl: process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "",
-				...addlOptionsWithPrefix,
+				...additionalOptionsWithPrefix,
 			};
 		}
 
@@ -88,29 +89,29 @@ export class Drama {
 				}
 			}
 
-			addlOptionsWithPrefix = {
-				...addlOptionsWithPrefix,
+			additionalOptionsWithPrefix = {
+				...additionalOptionsWithPrefix,
 				headers: {
 					...(apiKey ? {
 						'Authorization': `Bearer ${apiKey}`,
 					} : {}),
-					...addlOptionsWithPrefix?.headers,
+					...additionalOptionsWithPrefix?.headers,
 				},
 			};
 		}
 
-		return addlOptionsWithPrefix;
+		return additionalOptionsWithPrefix;
 	}
 
 	static async initialize(defaultSituation: string,
 		companionConfigs: CompanionConfig[],
 		kyInstance: KyInstance = ky,
-		database: Database,
+		database: Database = new InMemoryDatabase(),
 		additionalOptions?: Options,
 		chatModeOverride?: boolean,
 	) {
 		const worldState = await database.world() || [];
-		const newAddlOptions: Options = this.checkAddlOptions(additionalOptions);
+		const newAdditionalOptions: Options = this.checkAdditionalOptions(additionalOptions);
 
 		// Add the user if there is none
 		if (!companionConfigs.find(c => c.kind == "user"))
@@ -127,7 +128,7 @@ export class Drama {
 				},
 			];
 
-		const drama = new Drama(companionConfigs, database, worldState, kyInstance, newAddlOptions, chatModeOverride);
+		const drama = new Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, chatModeOverride);
 
 		// load interactions counters
 		drama.companions.forEach(companion => {
