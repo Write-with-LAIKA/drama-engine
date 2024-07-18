@@ -342,7 +342,7 @@ export class Drama {
 	addCompanionChat = (companion: Companion, situation: string) => {
 		return this.addChat(companion.id + "_chat", situation, [companion.id, "you"], 8, "round_robin");
 	}
-	addChat = (id: string, situation: string, companionIDs: string[], maxRounds: number = 8, speakerSelection: ChatSpeakerSelection = "random") => {
+	addChat = (id: string, situation: string, companionIDs: string[], maxRounds: number = 8, speakerSelection: ChatSpeakerSelection = "auto") => {
 		const chatCompanions = this.companions.filter(c => companionIDs.includes(c.id) && (c.configuration.kind == "npc" || c.configuration.kind == "user"));
 
 		const existingChat = this.getChat(id);

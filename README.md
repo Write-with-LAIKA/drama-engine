@@ -1,10 +1,10 @@
-# Drama Engine
+# 🏰 Drama Engine
 
 A library for agent orchestration
 
 *DISCLAIMER: This package is a work in progress. We aim to officially announce it in the next weeks and then more documentation will be made available. For now, feel free to play around and read code but maybe don't use it for anything important yet.*
 
-## About the Drama Engine
+## 🎭 About the Drama Engine
 
 The Drama Engine is a framework for agentic interaction with language models. It is written in TypeScript to execute in any browser. The Drama Engine is model- and provider-agnostic. We’ve built the Drama Engine for use in our Writers Room and that makes it focused on working with text but it can be used for any multi-participant chat.
 
@@ -17,7 +17,7 @@ The Drama Engine is a framework for agentic interaction with language models. It
 
 At the heart of the drama engine are different kinds of companions and their orchestration. Some companions are agents that simulate a personality. They can change over time and interact with each other. These companions use deputies to run ad-hoc chains of prompts that allow for a mix of different prompting techniques. A deputy might use a few-shot prompt to an instruction-tuned model while its host companion talks to the user by calling a chat-tuned model. This way, dynamic sequences of prompting (e.g. text summary, but only if the text is too long -> text analysis -> discussion about the analysis) can be configured in a modular way. The resulting system is far more flexible than prompt chains.
 
-## Installation
+## 💾 Installation
 
 Install using your favourite package manager:
 
@@ -25,20 +25,11 @@ Install using your favourite package manager:
 npm i @write-with-laika/drama-engine
 ```
 
-## Configuration
-
-### Database
-
-This library was developed to power our live product, [Writers Room](https://wr.writewithlaika.com), where we utilise the browsers IndexedDB API to store and manage states and data.
-
-When we decided to open source this package, we realised we needed to ship this with a generic database interface to manage the data. Therefore, we provide a minimal database interface which you can extend with your own functions. Have a look at `./tests/config/db.ts` for an example of an in-memory database.
-
-If you believe the interface can be improved, we welcome your contributions or feel free to reach out to us.
+## 🔧 Configuration
 
 ### Environment variables
 
-The library is provider agnostic as long as the LLM service you are using supports the OpenAI API standard.
-The library supports both the `/v1/completions` endpoint (that uses `prompt` string as LLM input) and the chat `/v1/chat/completions` endpoint (that uses `messages` array as LLM input).
+The library is provider agnostic as long as the LLM service you are using supports the OpenAI API standard. We support both, the `/v1/completions` endpoint (that uses `prompt` string as LLM input) and the chat `/v1/chat/completions` endpoint (that uses `messages` array as LLM input).
 
 The possible environment variables are:
 
@@ -49,7 +40,7 @@ The possible environment variables are:
 
 For convenience, all the environment variables "public" variants (that are exposed client-side) will also be checked/used during initialisation, i.e., the `NEXT_PUBLIC_` prefix variants: `NEXT_PUBLIC_DE_BASE_URL`, `NEXT_PUBLIC_DE_ENDPOINT_URL`, `NEXT_PUBLIC_DE_BACKEND_API_KEY`, and, `NEXT_PUBLIC_DE_LOG_LEVEL`.
 
-Please copy `.env.template` as `.env`, set your values, and, start using the library.
+Please copy `.env.template` to `.env` and edit it before using the library.
 
 **NOTE**: Depending on your provider backend, CORS might be required. The library does not handle these.
 
@@ -60,7 +51,7 @@ The drama engine accepts a few configuration options while initialisation.
 - `defaultSituation`: The initial situation for the companion when they are initialised.
 - `companionConfigs`: A list of companion configs. An example is provided below and in `/tests`.
 - `kyInstance`: An optional [Ky](https://github.com/sindresorhus/ky/) instance. We use Ky as our default HTTP client as it supports nice features like caching, redirects, retries, etc. out of the box. You can provide your own instance if needed else it will use the default one.
-- `database`: A database interface. A minimal in-memory database is provided in `tests`.
+- `database`: A database interface. A minimal in-memory database is provided as default.
 - `additionalOptions`: An `Options` object from `Ky`. You can set your own additional headers, retry options, etc. here. Refer to `Ky` documentation for more info.
 - `chatModeOverride`: An optional `boolean` variable. Default `false`. By default, if the value of `DE_ENDPOINT_URL` contains `chat/completions`, the library will switch to "chat" mode and use the `messages` array as the LLM input. If your endpoint is different, you can override this behaviour by passing a different value here.
 
@@ -74,83 +65,89 @@ If none are found, a warning is issued.
 
 If your provider uses a different header(s), you can pass it via `additionalOptions` and safely ignore the warning.
 
-**NOTE**: If you are a service provider using this library (esp. on client-side), it's recommended to handle outgoing requests using a middleware service such as Cloudflare, Vercel, etc. so that the API key is not exposed publicly. This library does not differentiate between server-side and client-side usage, so you should handle this appropriately.
+**WARNING**: If you are a service provider using this library (esp. on client-side), it's recommended to handle outgoing requests using a middleware service such as Cloudflare, Vercel, etc. so that the API key is not exposed publicly. This library does not differentiate between server-side and client-side usage, so you should handle this appropriately.
 
-## Tests
+### Database
+
+This library was developed to power our live product, [Writers Room](https://wr.writewithlaika.com), where we utilise the browsers IndexedDB API to store and manage states and data.
+
+When we decided to open source this package, we realised we needed to ship this with a generic database interface to manage the data. The in-memory database can be found in `database/in-memory-database.ts` and is the default database unless you override it during drama initialisation.
+
+## 📋 Tests
 
 A sample test suite is provided under `./tests/drama.test.ts` that can be run via `npm run test`. Ensure you have all the dev dependencies installed.
 
 Please refer to the test implementations for usage examples.
 
-## Usage
+## 🚀 Usage
 
-Set up a `Drama` and instantiate chats:
+First, configure at least one companion (be careful with newlines – they are retained in the prompt and so is indentation):
 
 ```javascript
 
-const d = await Drama.initialize("writersroom", writersroomCompanionConfigs, apiClient,
-  new DramaEngineDatabaseInterface(), {
-  headers: {
-    Accept: 'application/json'
-  },
-  timeout: 60 * 1000 // 1 minute
-});
-d.setWorldStateEntry("USERNAME", settings.user.unescapedUsername);
-d.addChat("fireplace", "fireplace", [...d.companions.filter(c => c.configuration.kind == "npc").map(c => c.id), "you"], 8, "auto");
+export const testCompanionConfigs: CompanionConfig[] = [
+  {
+    name: "Anders",
+    class: ChatCompanion,
+    bio: "Angel Investor @ HustleAndBustle",
+    description: "An international businessman from Denmark",
+    base_prompt: `Your name is Anders.
+      You are an expert businessman with decades of experience with evaluating startup business ideas and pitches for viability.
+      You are volunteering your expertise to help a new startup founder refine their pitch and business case.
+      You have a friendly yet matter-of-fact communication style.
+      You care about startup success and founder mental health more than anything else.`,
+    situations: [
+      {
+        id: "water-cooler",
+        prompt: `You are in a casual environment, chatting with co-workers.
+      You are free to be yourself and relax with friendly conversation.
+      You will not make any plans with the user, and you will not agree to any plans suggested by the user.`
+      },
+      {
+        id: "co-working",
+        prompt: `When given text by a startup founder, you will analyze it for any improvements you can suggest to make it sharper, clearer, and more likely to win investment.
+      You have a vast knowledge of sales, marketing, product market fit, product strategy, and fundraising with top-tier investors.
+      You often like to offer a small piece of business wisdom.
+      You never write more than two sentences per response.
+      If you do not know something, you will say so rather than inventing an answer.
+      You will not make any plans with the user, and you will not agree to any plans suggested by the user.`
+      }],
+    kind: "npc",
+  }
+];
 
 ```
 
-Append a user message to a chat:
+Set up a `Drama` and instantiate chats. In this example, we create a drama with only one chat that uses the situation `water-cooler` and includes the above companion and you.
+
+```javascript
+
+const drama = await Drama.initialize("water-cooler", testCompanionConfigs);
+drama.addChat("Water-Cooler", "water-cooler", [...d.companions.filter(c => c.configuration.kind == "npc").map(c => c.id), "you"]);
+
+```
+
+Append a user message to a chat. Callback is a function that makes sure the display of the chat is updated. It could for example change a React state in oder to force an update.
 
 ```javascript
 
 const you = participants && participants['you'];
 you && chat.appendMessage(you, message);
-callback && callback(chat);
+callback && callback(chat); // call callback manually
 
 ```
 
-Configure a companion (be careful with newlines – they are retained in the prompt and so is indentation):
-
-```javascript
-{
-  name: "Anders",
-  class: ChatCompanion,
-  bio: "Angel Investor @ HustleAndBustle",
-  description: "An international businessman from Denmark",
-  base_prompt: `Your name is Anders.
-You are an expert businessman with decades of experience with evaluating startup business ideas and pitches for viability.
-You are volunteering your expertise to help a new startup founder refine their pitch and business case.
-You have a friendly yet matter-of-fact communication style.
-You care about startup success and founder mental health more than anything else.`,
-  situations: [{
-      id: "fireplace",
-      prompt: `You are in a casual environment, chatting with co-workers.
-You are free to be yourself and relax with friendly conversation.
-You will not make any plans with the user, and you will not agree to any plans suggested by the user.`
-  }, {
-    id: "writersroom",
-    prompt: `When given text by a startup founder, you will analyze it for any improvements you can suggest to make it sharper, clearer, and more likely to win investment.
-You have a vast knowledge of sales, marketing, product market fit, product strategy, and fundraising with top-tier investors.
-You often like to offer a small piece of business wisdom.
-You never write more than two sentences per response.
-If you do not know something, you will say so rather than inventing an answer.
-You will not make any plans with the user, and you will not agree to any plans suggested by the user.`
-  }],
-  kind: "npc"
-}
-```
 
 Run a conversation with up to 4 replies:
 
 ```javascript
 
-const context = new Context(undefined, [], "fireplace", situation); // make a new context
-await drama.runConversation(chat, 4, context, undefined, undefined, callback); // run for up to 4 messages
+const context = new Context(undefined, [], "Water-Cooler", "water-cooler"); // make a new context
+await drama.runConversation(chat, 4, context, undefined, undefined, callback); // run for up to 4 messages, callback is called with each incoming new message
 
 ```
 
-## Concepts
+## 🧠 Concepts
 
 ### Companions
 
@@ -210,7 +207,7 @@ The moderator currently only selects the next speaker. It selects the right depu
 
 Specific speakers can be excluded from the list of allowed speakers. Repeat replies can be disabled, too. Shells (deputies) are not permitted to speak unless as part of an action.
 
-## Intended Use
+## 🛸 Intended Use
 
 The intended way for working with the Drama Engine is to first define companions and their actions. The you set up individual chats or group chats with them. In order to display the chat and make the actions available, some interface work is necessary. As you can see above, all the chat history is always in the Chat object and there's a callback for whenever a new message comes in.
 
@@ -221,3 +218,7 @@ The easiest way to extend the current functionality of the Drama Engine is to wr
 Next, users can write their own subclasses of the `Deputy` class. In that case, all they have to do is make a new class, define the companion config, and a `runAction` function. This function can edit the context to trigger automatic prompting of the language model. It can also just set a job or other context fields to specify the behaviour of the hosting companion instead.
 
 Finally, reply functions allow for a wide range of customisation of companion behaviour all the way to full agentic workflows where one agent writes code, another one executes it and a third one criticises it. The sky's the limit.
+
+## 🏆 Contributing
+
+Pull requests and feature requests are very welcome.

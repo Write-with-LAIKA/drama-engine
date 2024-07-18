@@ -1391,7 +1391,7 @@ var Drama = class _Drama {
     this.addCompanionChat = (companion, situation) => {
       return this.addChat(companion.id + "_chat", situation, [companion.id, "you"], 8, "round_robin");
     };
-    this.addChat = (id, situation, companionIDs, maxRounds = 8, speakerSelection = "random") => {
+    this.addChat = (id, situation, companionIDs, maxRounds = 8, speakerSelection = "auto") => {
       const chatCompanions = this.companions.filter((c) => companionIDs.includes(c.id) && (c.configuration.kind == "npc" || c.configuration.kind == "user"));
       const existingChat = this.getChat(id);
       if (existingChat) {
