@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { ChatMessage, Context, Drama } from '../src';
+import { ChatMessage, Companion, Context, Drama } from '../src';
 import { InMemoryDatabase } from '../src/db/in-memory-database';
 import { testCompanionConfigs } from './config/companions';
 import { streamingModelConfig, testModelConfig } from './config/models';
@@ -8,6 +8,15 @@ const userTestPrompt = "Hey Anders, if our startups target is a small niche mark
 
 test('API key is available', () => {
 	expect(process.env.DE_BACKEND_API_KEY).toBeDefined();
+});
+
+test('Companion ID generator', () => {
+	expect(Companion.toID("FranK")).toBe("frank");
+	expect(Companion.toID("Frank Jimmy")).toBe("frank-jimmy");
+	expect(Companion.toID("Frank 	Jimmy")).toBe("frank-jimmy");
+	expect(Companion.toID("Frank{!}")).toBe("frank{!}");
+	expect(Companion.toID("Frank🤘")).toBe("frank");
+	expect(Companion.toID("Frank Jimmy Isildur")).toBe("frank-jimmy-isildur");
 });
 
 test('Initialised drama engine correctly', async () => {

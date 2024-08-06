@@ -2,6 +2,7 @@ import { Category, Condition, ConditionalLine, evaluateCondition } from "../cond
 import { ModelConfig, defaultModelConfig } from "../config/models";
 import { Drama } from "../drama";
 import { randomArrayElement } from "../utils/array-utils";
+import { makeSafe } from "../utils/string-utils";
 import { AutoCompanion } from "./auto-companion";
 
 export type CompanionState = "disabled" | "free" | "active" | "autonomous" | "chat-only";
@@ -54,7 +55,7 @@ export abstract class Companion {
 
 	mood: { label: string, prompt?: string } = { label: "neutral", prompt: undefined };
 
-	public static toID = (name: string) => { return name.toLowerCase(); }
+	public static toID = (name: string) => { return makeSafe(name.replaceAll(/\s+/g, "-").toLowerCase()); }
 
 	constructor(configuration: CompanionConfig) {
 		this.configuration = configuration;

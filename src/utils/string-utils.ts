@@ -67,12 +67,12 @@ export function getNextCut(text: String) {
 	);
 }
 
-export const checkPrompt = (text: string) => {
+export const isLatin = (text: string) => {
 	return /^([\u0000-\u024F])+$/u.test(text);
 }
 
 export const makeSafe = (text: string) => {
-	return text.replace(/[^\u0000-\u024F]+/g, "");
+	return text.replaceAll(/[^\u0000-\u024F]+/g, "");
 }
 
 export type promptType = { text: string; startPosition: number; endPosition: number }
