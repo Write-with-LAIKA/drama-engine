@@ -14,8 +14,11 @@ test('Companion ID generator', () => {
 	expect(Companion.toID("FranK")).toBe("frank");
 	expect(Companion.toID("Frank Jimmy")).toBe("frank-jimmy");
 	expect(Companion.toID("Frank 	Jimmy")).toBe("frank-jimmy");
-	expect(Companion.toID("Frank{!}")).toBe("frank{!}");
+	expect(Companion.toID("Frank{!}")).toBe("frank");
 	expect(Companion.toID("Frank🤘")).toBe("frank");
+	expect(Companion.toID("Frank123")).toBe("frank123");
+	expect(Companion.toID("Frank!123()")).toBe("frank123");
+	expect(Companion.toID("F2D2")).toBe("f2d2");
 	expect(Companion.toID("Frank Jimmy Isildur")).toBe("frank-jimmy-isildur");
 });
 

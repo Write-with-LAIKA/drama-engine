@@ -55,7 +55,7 @@ export abstract class Companion {
 
 	mood: { label: string, prompt?: string } = { label: "neutral", prompt: undefined };
 
-	public static toID = (name: string) => { return makeSafe(name.replaceAll(/\s+/g, "-").toLowerCase()); }
+	public static toID = (name: string) => { return name.replaceAll(/[^a-zA-Z0-9\s]+/g, "").replaceAll(/\s+/g, "-").toLowerCase(); }
 
 	constructor(configuration: CompanionConfig) {
 		this.configuration = configuration;
