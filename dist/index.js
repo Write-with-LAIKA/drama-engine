@@ -351,7 +351,7 @@ var _Companion = class _Companion {
   // id is unique and if companion has the same it's the same companion
 };
 _Companion.toID = (name) => {
-  return name.toLowerCase();
+  return name.replaceAll(/[^a-zA-Z0-9\s]+/g, "").replaceAll(/\s+/g, "-").toLowerCase();
 };
 var Companion = _Companion;
 
