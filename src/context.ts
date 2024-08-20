@@ -5,7 +5,7 @@ import { logger } from "./utils/logging-utils";
 
 export type ContextDataTypes =
 	// everywhere
-	"companionNames" |		// The other companions around
+	"companionNames" |		// The other companions around, comma-separated
 	"error" |			// An error that occurred
 	"conversationID" |	// A conversation can have multiple turns. They all share an ID
 

@@ -82,7 +82,7 @@ ${username}: A guest user in the chatroom.
 		// if there's a nextSpeaker set just return it
 		if (nextSpeaker) return [nextSpeaker];
 
-		// ry to set last speaker if undefined
+		// try to set last speaker if undefined
 		if (lastSpeaker == undefined && chat.history.length > 0) {
 			lastSpeaker = chat.history.sort((l, r) => l.timeStamp - r.timeStamp)[chat.history.length - 1].companion;
 		}
