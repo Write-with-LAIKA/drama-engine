@@ -1,7 +1,8 @@
 import { Category, Condition, ConditionalLine, evaluateCondition } from "../conditions";
-import { ModelConfig, defaultModelConfig } from "../model-config";
+import { ModelConfig, defaultModelConfig } from "../config/models";
 import { Drama } from "../drama";
-import { getRandomElement, randomArrayElement } from "../utils/array-utils";
+import { randomArrayElement } from "../utils/array-utils";
+import { makeSafe } from "../utils/string-utils";
 import { AutoCompanion } from "./auto-companion";
 
 export type CompanionState = "disabled" | "free" | "active" | "autonomous" | "chat-only";
@@ -33,10 +34,11 @@ export type CompanionConfig = {
 	situations?: { id: string, prompt: string }[],
 	knowledge?: ConditionalLine[],
 	mottos?: ConditionalLine[],
-	
+
 	actions?: ActionDescription[],
 	triggers?: TriggerDescription[],
-	
+
+	modelConfig?: ModelConfig,
 	temperature?: number,
 
 	scope?: CompanionScope;
@@ -46,7 +48,6 @@ export abstract class Companion {
 	id: string;
 	configuration: CompanionConfig;
 	status: CompanionState;
-	modelConfig?: ModelConfig = undefined;
 
 	// statistics
 	interactions: number;
@@ -54,7 +55,7 @@ export abstract class Companion {
 
 	mood: { label: string, prompt?: string } = { label: "neutral", prompt: undefined };
 
-	public static toID = (name: string) => { return name.toLowerCase(); }
+	public static toID = (name: string) => { return name.replaceAll(/[^a-zA-Z0-9\s]+/g, "").replaceAll(/\s+/g, "-").toLowerCase(); }
 
 	constructor(configuration: CompanionConfig) {
 		this.configuration = configuration;
@@ -62,9 +63,10 @@ export abstract class Companion {
 		this.interactions = 0;
 		this.actions = 0;
 		this.status = "active";
+		this.configuration.modelConfig = configuration.modelConfig || defaultModelConfig;
 
-		if (configuration.temperature) { 
-			this.modelConfig = { ...defaultModelConfig, temperature: configuration.temperature }
+		if (configuration.temperature) {
+			this.configuration.modelConfig.temperature = configuration.temperature;
 		}
 
 		return this;
@@ -83,7 +85,7 @@ export abstract class Companion {
 		const userName = drama.getWorldStateValue("USERNAME");
 		if (userName)
 			return randomArrayElement<string>(this.getMottosByEvent(event, drama)).replace("{{USERNAME}}", userName as string) || "";
-		else 
+		else
 			return randomArrayElement<string>(this.getMottosByEvent(event, drama)) || "";
 	}
 

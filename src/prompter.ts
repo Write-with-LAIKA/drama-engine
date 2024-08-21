@@ -1,15 +1,17 @@
 import { Template } from "@huggingface/jinja";
-import { Companion } from "./companions/companion";
-import { Context, ContextData, ContextDataTypes, ContextDecorator, defaultDecorators } from "./context";
-import { PromptConfig, PromptTemplate, defaultPromptConfig } from "./prompt-config";
-import { KeyValueRecord } from "./database";
-import { evaluateCondition } from "./conditions";
-import { getRandomElement } from "./utils/array-utils";
 import { ChatMessage } from "./chat";
+import { Companion } from "./companions/companion";
+import { evaluateCondition } from "./conditions";
+import { PromptConfig, PromptTemplate, defaultPromptConfig } from "./config/prompts";
+import { Context, ContextDataTypes, ContextDecorator, defaultDecorators } from "./context";
+import { KeyValueRecord } from "./db/database";
+import { getRandomElement } from "./utils/array-utils";
+import { logger } from "./utils/logging-utils";
 import { unixTimestampToDate } from "./utils/time-utils";
+import { Messages } from "./model";
 
 /**
- * A simple wrapper to make it possible to append text if and only if the text is not undefined. Separator between old 
+ * A simple wrapper to make it possible to append text if and only if the text is not undefined. Separator between old
  * and new text can be set. Always appends at the end.
  *
  * @class Prompt
@@ -107,7 +109,7 @@ export class Prompter {
 		});
 
 		if (true) {
-			console.log("Prompt: ", result);
+			logger.debug("Prompt: ", result);
 		}
 
 		return result;
@@ -123,7 +125,7 @@ export class Prompter {
 	 * @param {ContextDecorator[]} [decorators=[]]
 	 * @param {PromptConfig} [config=defaultPromptConfig]
 	 * @param {PromptTemplate} [promptTemplate]
-	 * @return {*} 
+	 * @param {returnChat} [returnChat]
 	 */
 	assemblePrompt = (companion: Companion,
 		worldState: KeyValueRecord[],
@@ -131,7 +133,8 @@ export class Prompter {
 		history?: ChatMessage[],
 		decorators: ContextDecorator[] = [],	// eventual additional decorators
 		config: PromptConfig = defaultPromptConfig,
-		promptTemplate?: PromptTemplate) => {
+		promptTemplate?: PromptTemplate,
+		returnChat: boolean = false): string | Messages => {
 
 		let tags: string[] = [];
 		companion.configuration.knowledge && companion.configuration.knowledge
@@ -153,8 +156,8 @@ export class Prompter {
 		const paragraphData = this.decorate("paragraph", context.paragraph, allDecorators);
 		const inputData = textData || paragraphData || this.decorate("text", context.input, allDecorators);;
 
-		console.log("context", { ...context });
-		console.log("input data", context.query()?.substring(0, 250));
+		logger.debug("context", { ...context });
+		logger.debug("input data", context.query()?.substring(0, 250));
 
 		const moodData = companion.mood.prompt;
 
@@ -200,9 +203,9 @@ export class Prompter {
 				.forEach(line => chat.push(
 					{
 						role: (line.companion.id == "you") ?
-							((username && typeof (username) == "string") ? username : 'user')
+							((!returnChat && username && typeof (username) == "string") ? username : 'user')
 							:
-							((line.companion.id == companion.id) ? "assistant" : line.companion.configuration.name),
+							((line.companion.id == companion.id) ? "assistant" : !returnChat ? line.companion.configuration.name : "user"),
 						content: this.sanitize(line.message)
 					}));
 
@@ -228,15 +231,18 @@ export class Prompter {
 			cleaned_chat.push({ role: "user", content: this.sanitize(job) })
 		}
 
-		const name = "assistant"; //companion.configuration.kind == "shell" ? "assistant" : companion.id;
-
-		let template = undefined;
-		if (promptTemplate) {
-			template = new Template(promptTemplate.chat_template);
+		if (returnChat) {
+			return cleaned_chat;
 		}
 
-		return this.renderPrompt(name, cleaned_chat, template);
+		const name = "assistant"; //companion.configuration.kind == "shell" ? "assistant" : companion.id;
 
+		// If a template is provided, use that
+		// Else, check if the companion uses a different model/template
+		// Else, use the default template
+		let template = promptTemplate?.chat_template || companion.configuration.modelConfig?.extra?.template?.chat_template;
+
+		return this.renderPrompt(name, cleaned_chat, template ? new Template(template) : undefined);
 	}
 
 

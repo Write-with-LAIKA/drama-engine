@@ -1,5 +1,6 @@
+import { ModelConfig } from "./config/models";
 import { Context } from "./context";
-import { ModelConfig } from "./model-config";
+import { Messages } from "./model";
 
 
 /**
@@ -23,6 +24,7 @@ export type Job = {
 	status: JobStatus,
 	context: Context,
 	prompt?: string,
+	messages?: Messages,
 	remoteID: string,
 	timeStamp: number,
 	modelConfig?: ModelConfig,

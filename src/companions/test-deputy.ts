@@ -1,6 +1,7 @@
-import { Chat, ChatMessage } from "../chat";
+import { Chat } from "../chat";
 import { Context } from "../context";
 import { Drama } from "../drama";
+import { logger } from "../utils/logging-utils";
 import { AutoCompanion, CompanionReply } from "./auto-companion";
 import { CompanionConfig } from "./companion";
 import { Deputy } from "./deputy";
@@ -24,7 +25,7 @@ export class TestDeputy extends Deputy {
 	}
 
 	protected runAction = async (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion): Promise<CompanionReply> => {
-		
+
 		// const firstAction = this.configuration.actions?.at(0);
 		// const delegate = firstAction && chat.companions.find(c => c.id == firstAction.deputy);
 
@@ -33,7 +34,7 @@ export class TestDeputy extends Deputy {
 		// if (delegate && !context.hasAnswer()) return [true, context];
 
 		// do nothing
-		console.log("TEST DELEGATE CONTEXT", context);
+		logger.debug("TEST DELEGATE CONTEXT", context);
 
 		// otherwise we're done
 		return [true, context];

@@ -1,21 +1,24 @@
-export { Drama } from './drama';
 export { Chat } from './chat';
 export type { ChatMessage, ChatSpeakerSelection } from './chat';
-export type { ChatRecord, PromptRecord, HistoryRecord, KeyValueRecord, StateTypes } from "./database"
-export { Database } from './database';
-export { Context } from "./context";
-export type { ContextData, ContextDataTypes, ContextDecorator } from "./context";
-export type { Condition, ConditionalLine, Category, Tag } from "./conditions";
-export type { Job, JobStatus } from "./job";
-export { defaultPromptConfig, defaultPromptTemplates } from "./prompt-config";
-export { Model, ModelError } from "./model";
-export type { ModelConfig } from "./model-config";
 export { AutoCompanion } from "./companions/auto-companion";
 export type { CompanionReply } from "./companions/auto-companion";
 export { ChatCompanion } from "./companions/chat-companion";
+export { Companion, TriggerOperation } from "./companions/companion";
+export type { CompanionConfig, CompanionKind, CompanionScope, CompanionState } from "./companions/companion";
 export { Deputy } from "./companions/deputy";
 export { InstructionDeputy } from "./companions/instruction-deputy";
 export { TestDeputy } from "./companions/test-deputy";
+export type { Category, Condition, ConditionalLine, Tag } from "./conditions";
+export { defaultModelConfig } from "./config/models";
+export type { ModelConfig } from "./config/models";
+export { defaultPromptConfig, defaultPromptTemplates } from "./config/prompts";
+export { Context } from "./context";
+export type { ContextData, ContextDataTypes, ContextDecorator } from "./context";
+export type { ChatRecord, HistoryRecord, KeyValueRecord, PromptRecord, StateTypes } from "./db/database";
+export { Database } from './db/database';
+export { InMemoryDatabase } from './db/in-memory-database';
+export { Drama } from './drama';
+export type { Job, JobStatus } from "./job";
+export { Model, ModelError } from "./model";
 export { getRandomElement, randomArrayElement } from "./utils/array-utils";
-export { Companion, TriggerOperation } from "./companions/companion";
-export type { CompanionConfig, CompanionKind, CompanionScope, CompanionState } from "./companions/companion";
+

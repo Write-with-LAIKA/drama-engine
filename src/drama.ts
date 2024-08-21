@@ -1,16 +1,19 @@
-import { ActionDescription, Companion, CompanionConfig, TriggerOperation } from "./companions/companion";
-import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./database";
-import { Job, JobStatus } from "./job";
-import { Context, ContextDataTypes, ContextDecorator } from "./context";
+import ky, { KyInstance, Options } from "ky";
 import { v4 as uuidv4 } from "uuid";
-import { Model } from "./model";
-import { Prompter } from "./prompter";
-import { PromptConfig } from "./prompt-config";
 import { Chat, ChatMessage, ChatSpeakerSelection } from "./chat";
 import { AutoCompanion } from "./companions/auto-companion";
-import { Tag, evaluateCondition } from "./conditions";
-import ky, { KyInstance, Options } from "ky";
 import { ChatCompanion } from "./companions/chat-companion";
+import { ActionDescription, Companion, CompanionConfig } from "./companions/companion";
+import { evaluateCondition } from "./conditions";
+import { PromptConfig } from "./config/prompts";
+import { Context, ContextDecorator } from "./context";
+import { ChatRecord, Database, HistoryRecord, KeyValueRecord, StateTypes } from "./db/database";
+import { Job, JobStatus } from "./job";
+import { Model } from "./model";
+import { Prompter } from "./prompter";
+import { logger } from "./utils/logging-utils";
+import { KyHeadersInit } from "ky/distribution/types/options";
+import { InMemoryDatabase } from "./db/in-memory-database";
 
 export class Drama {
 	model: Model;
@@ -18,6 +21,7 @@ export class Drama {
 	database: Database;
 	additionalOptions?: Options;
 	prompter: Prompter;
+	chatMode: boolean;
 
 	companions: AutoCompanion[] = [];
 	worldState: KeyValueRecord[] = [];
@@ -30,27 +34,84 @@ export class Drama {
 		worldState: KeyValueRecord[],
 		kyInstance: KyInstance,
 		additionalOptions?: Options,
-		) {
+		chatModeOverride?: boolean,
+	) {
 		this.worldState = worldState;
-		this.model = new Model();
+
+		const apiEndpoint = process.env.DE_ENDPOINT_URL || process.env.NEXT_PUBLIC_DE_ENDPOINT_URL || 'v1/completions';
+		this.chatMode = chatModeOverride === undefined ? apiEndpoint.includes('chat/completions') : chatModeOverride;
+
+		this.model = new Model(apiEndpoint);
 		this.prompter = new Prompter(this.model.promptTemplate);
 		this.instance = kyInstance;
 		this.database = database;
 		this.additionalOptions = additionalOptions;
 		this.companions = companionConfigs.map(c => new c.class(c, this));
 
-		console.log("DRAMA ENGINE // INITIATED");
+		logger.info("DRAMA ENGINE // INITIATED");
 
 		return this;
+	}
+
+	private static isAuthTokenAvailable(headersInit?: KyHeadersInit): boolean {
+		if (headersInit) {
+			const headers = new Headers(headersInit as HeadersInit);
+
+			const authHeaderExists = (headers?.get("authorization")?.length || 0) > 0;
+			const apiKeyHeaderExists = (headers?.get("x-api-key")?.length || 0) > 0;
+			const authTokenHeaderExists = (headers?.get("x-auth-token")?.length || 0) > 0;
+
+			return authHeaderExists || apiKeyHeaderExists || authTokenHeaderExists;
+		}
+		return false;
+	}
+
+	private static checkAdditionalOptions(additionalOptions?: Options): Options {
+		let additionalOptionsWithPrefix: Options = additionalOptions || {};
+
+		if (additionalOptionsWithPrefix?.prefixUrl === undefined) {
+			additionalOptionsWithPrefix = {
+				prefixUrl: process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "",
+				...additionalOptionsWithPrefix,
+			};
+		}
+
+		const authTokenAvailable = this.isAuthTokenAvailable(additionalOptions?.headers);
+
+		if (!authTokenAvailable) {
+			let apiKey = process.env.DE_BACKEND_API_KEY;
+			if (!apiKey) {
+				apiKey = process.env.NEXT_PUBLIC_DE_BACKEND_API_KEY;
+				if (apiKey) {
+					logger.warn("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure this was intended behaviour.");
+				} else {
+					logger.warn("No API keys were found. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token. And the following variables: DE_BACKEND_API_KEY, NEXT_PUBLIC_DE_BACKEND_API_KEY. Ensure this was intended behaviour.");
+				}
+			}
+
+			additionalOptionsWithPrefix = {
+				...additionalOptionsWithPrefix,
+				headers: {
+					...(apiKey ? {
+						'Authorization': `Bearer ${apiKey}`,
+					} : {}),
+					...additionalOptionsWithPrefix?.headers,
+				},
+			};
+		}
+
+		return additionalOptionsWithPrefix;
 	}
 
 	static async initialize(defaultSituation: string,
 		companionConfigs: CompanionConfig[],
 		kyInstance: KyInstance = ky,
-		database: Database,
+		database: Database = new InMemoryDatabase(),
 		additionalOptions?: Options,
+		chatModeOverride?: boolean,
 	) {
 		const worldState = await database.world() || [];
+		const newAdditionalOptions: Options = this.checkAdditionalOptions(additionalOptions);
 
 		// Add the user if there is none
 		if (!companionConfigs.find(c => c.kind == "user"))
@@ -67,7 +128,7 @@ export class Drama {
 				},
 			];
 
-		const drama = new Drama(companionConfigs, database, worldState, kyInstance, additionalOptions);
+		const drama = new Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, chatModeOverride);
 
 		// load interactions counters
 		drama.companions.forEach(companion => {
@@ -110,11 +171,11 @@ export class Drama {
 	}
 
 	reset = async () => {
-		console.log("DRAMA ENGINE // RESET");
+		logger.info("DRAMA ENGINE // RESET");
 
 		this.jobs = [];
 		await this.database.reset();
-		await this.database.setCompanions(this.companions);
+		await this.database.initCompanionStats(this.companions);
 	}
 
 	/* WORLD STATE MANAGEMENT */
@@ -192,8 +253,7 @@ export class Drama {
 			timeStamp: Date.now(),
 		}
 
-		console.log("new job: ")
-		console.log(job)
+		logger.debug("new job: ", job);
 
 		this.jobs.push(job);
 	}
@@ -220,8 +280,8 @@ export class Drama {
 
 	/* PROMPT */
 
-	getPrompt = (companion: Companion, history: ChatMessage[], context: Context, decorators: ContextDecorator[] = [], config: PromptConfig = this.model.promptConfig) => {
-		return this.prompter.assemblePrompt(companion, this.worldState, context, history, decorators, config);
+	getInput = (companion: Companion, history: ChatMessage[], context: Context, decorators: ContextDecorator[] = [], config: PromptConfig = this.model.promptConfig) => {
+		return this.prompter.assemblePrompt(companion, this.worldState, context, history, decorators, config, undefined, this.chatMode);
 	}
 
 	/* INFERENCES */
@@ -230,7 +290,7 @@ export class Drama {
 		const response = await this.model.runJob(job, this.instance, this.additionalOptions);
 		response && job.context.addUsage(response);
 
-		console.info("runJob", job, "-->", response);
+		logger.debug("runJob", job, "-->", response);
 
 		await this.increaseWorldStateEntry("INPUT_TOKENS", job.context.input_tokens);
 		await this.increaseWorldStateEntry("OUTPUT_TOKENS", job.context.output_tokens);
@@ -241,6 +301,7 @@ export class Drama {
 		await this.database.addPromptEntry({
 			timeStamp: Date.now(),
 			prompt: job.prompt || "No prompt found",
+			messages: job.messages,
 			result: response?.response || "NONE",
 			config: JSON.stringify(job.modelConfig)
 		})
@@ -251,7 +312,7 @@ export class Drama {
 	/* CHATS */
 
 	restoreChats = (chatRecords?: ChatRecord[]) => {
-		chatRecords?.forEach(async (chatRecord) => await this.database.addChatEntry(chatRecord));
+		chatRecords?.forEach(async (chatRecord) => await this.database.overwriteChats(chatRecord));
 		this.chats.forEach(async (chat) => {
 			let chatRecord: ChatRecord | undefined;
 
@@ -281,7 +342,7 @@ export class Drama {
 	addCompanionChat = (companion: Companion, situation: string) => {
 		return this.addChat(companion.id + "_chat", situation, [companion.id, "you"], 8, "round_robin");
 	}
-	addChat = (id: string, situation: string, companionIDs: string[], maxRounds: number = 8, speakerSelection: ChatSpeakerSelection = "random") => {
+	addChat = (id: string, situation: string, companionIDs: string[], maxRounds: number = 8, speakerSelection: ChatSpeakerSelection = "auto") => {
 		const chatCompanions = this.companions.filter(c => companionIDs.includes(c.id) && (c.configuration.kind == "npc" || c.configuration.kind == "user"));
 
 		const existingChat = this.getChat(id);
@@ -291,13 +352,13 @@ export class Drama {
 			existingChat.companions = chatCompanions;
 			existingChat.maxRounds = maxRounds;
 			existingChat.speakerSelection = speakerSelection;
-			console.log("Reconfiguring existing chat: " + existingChat.id);
+			logger.debug("Reconfiguring existing chat: " + existingChat.id);
 			return existingChat;
 		}
 
 		const chat = new Chat(this, id, situation, chatCompanions, maxRounds, speakerSelection);
 		this.chats.push(chat);
-		console.log("New chat: " + chat.id);
+		logger.info("New chat: " + chat.id);
 		return chat;
 	}
 
@@ -343,7 +404,7 @@ export class Drama {
 
 			if (activeSpeaker && activeSpeaker.configuration.kind != "user") {
 
-				console.log("Setting active speaker", activeSpeaker);
+				logger.info("Setting active speaker", activeSpeaker);
 
 				activeSpeaker.status = "active";
 				rounds--;
@@ -380,7 +441,7 @@ export class Drama {
 			} else {
 				// active speaker is user -> return control
 				// await db.logChat(chat.id, chat.history);
-				await this.database.logChat(chat.id, chat.history);
+				await this.database.writeChat(chat.id, chat.history);
 				await this.syncInteractions();
 
 				context = await this.runTriggers(context, callback);
@@ -389,7 +450,7 @@ export class Drama {
 			}
 		}
 
-		await this.database.logChat(chat.id, chat.history);
+		await this.database.writeChat(chat.id, chat.history);
 		await this.syncInteractions();
 
 		context = await this.runTriggers(context, callback);
@@ -434,8 +495,7 @@ export class Drama {
 							// send an event
 							await this.setWorldStateEntry(trigger.effect.value, true);
 
-							console.log("Setting event " + trigger.effect.value);
-							console.log(trigger.condition);
+							logger.info("Setting event " + trigger.effect.value + " with condition " + trigger.condition);
 
 						} else if (trigger.effect.tag == "action" && trigger.effect.value && typeof trigger.effect.value == "string") {
 
@@ -458,12 +518,12 @@ export class Drama {
 									if (typeof trigger.effect.value == "number")
 										await this.increaseWorldStateEntry(trigger.effect.tag, trigger.effect.value);
 									else
-										console.error("Operation '" + trigger.action + "' needs a value in the condition that is number!");
+										logger.error("Operation '" + trigger.action + "' needs a value in the condition that is number!");
 									break;
-								default: console.error("Operation '" + trigger.action + "' is not implemented yet!");
+								default: logger.error("Operation '" + trigger.action + "' is not implemented yet!");
 							}
 						} else {
-							console.error("Triggers with operation '" + trigger.action + "' can only operate on a world state or send an event. Also it needs a value set in the condition.")
+							logger.error("Triggers with operation '" + trigger.action + "' can only operate on a world state or send an event. Also it needs a value set in the condition.")
 						}
 					}
 				}

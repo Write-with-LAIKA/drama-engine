@@ -1,8 +1,9 @@
 import { AutoCompanion } from "./companions/auto-companion";
-import { Companion, CompanionConfig } from "./companions/companion";
+import { Companion } from "./companions/companion";
+import { ModeratorDeputy } from "./companions/moderator-deputy";
 import { Context } from "./context";
 import { Drama } from "./drama";
-import { ModeratorDeputy } from "./companions/moderator-deputy";
+import { logger } from "./utils/logging-utils";
 
 /**
  * Determine how the next speaker is chosen.
@@ -113,12 +114,12 @@ export class Chat {
 				const deputy = this.drama.companions.find(c => c.id == a.deputy);
 
 				if (!deputy) {
-					console.error("Error: Can't find deputy: " + a.deputy);
+					logger.error("Error: Can't find deputy: " + a.deputy);
 					return;
 				}
 
 				if (!this.companions.includes(deputy)) {
-					// console.log("Auto-adding deputy: " + a.deputy);
+					// logger.debug("Auto-adding deputy: " + a.deputy);
 					this.companions.push(deputy);
 				}
 			}))
@@ -135,7 +136,7 @@ export class Chat {
 	 * @date 12/01/2024 - 12:51:23
 	 */
 	appendMessage = (companion: AutoCompanion, message: string, context?: Context) => {
-		console.log(companion.id + ": " + message);
+		logger.debug(companion.id + ": " + message);
 		const appendedMessage = { companion: companion, message: message, timeStamp: Date.now(), context: context ? { ...context } : undefined };
 		this.history.push(appendedMessage);
 		companion.interactions++;

@@ -1,7 +1,8 @@
-import { ModelConfig, defaultModelConfig } from "./model-config";
-import { Job } from "./job";
 import { KyInstance, Options } from "ky";
-import { PromptConfig, PromptTemplate } from "./prompt-config";
+import { ModelConfig, defaultModelConfig } from "./config/models";
+import { PromptConfig, PromptTemplate } from "./config/prompts";
+import { Job } from "./job";
+import { logger } from "./utils/logging-utils";
 
 /**
  * The response from the backend/model including the number of tokens in and out.
@@ -21,14 +22,20 @@ export interface JobResponse {
 	// runtime: number | undefined;
 }
 
+export type Messages = {
+	role: string,
+	content: string,
+}[];
+
 type OptionalPropsType<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 type GenerationParams = OptionalPropsType<ModelConfig, 'extra'>;
 interface RequestPayload extends GenerationParams {
-	prompt: string,
+	prompt?: string,
+	messages?: Messages,
 	preset?: string,
 	chat_id?: string,
 	situation_id?: string,
-	interaction_id?: string
+	interaction_id?: string,
 }
 
 /**
@@ -92,11 +99,11 @@ export class Model {
 
 	/**
 	 * Creates an instance of Model.
-	 * @param {string} [path='/api/user/writersroom/generate']
+	 * @param {string}
 	 * @memberof Model
 	 */
-	constructor(path = '/api/user/writersroom/generate') {
-		this.path = path;
+	constructor(path: string) {
+		this.path = path.startsWith('/') ? path.slice(1) : path;
 		return this;
 	}
 
@@ -104,7 +111,7 @@ export class Model {
 		try {
 			const jobResponse: JobResponse = {
 				id: jsonResponse.id, // job_id
-				response: jsonResponse.choices[0]?.text, // generated text - change this if n > 1 in inference params
+				response: jsonResponse.response || jsonResponse.choices[0]?.text || jsonResponse.choices[0]?.message?.content, // generated text - change this if n > 1 in inference params
 				input_tokens: jsonResponse.usage?.prompt_tokens, // runtime of the request
 				output_tokens: jsonResponse.usage?.completion_tokens, // runtime of the request
 
@@ -116,7 +123,7 @@ export class Model {
 			return jobResponse;
 		}
 		catch (error) {
-			console.error('Error parsing JSON:', error);
+			logger.error('Error parsing JSON:', error);
 			throw new Error("JSON Parsing error.");
 		}
 	}
@@ -135,61 +142,58 @@ export class Model {
 	 * @memberof Model
 	 */
 	private buildResponseFromStream = async (response: Response) => {
-		const reader = response.body?.getReader();
-		if (!reader) {
-			throw new Error('Response body is not readable.');
-		}
+		// Mostly taken from https://stackoverflow.com/a/75751803
 
-		let buffer = '';
+		let buffer: string = '';
 		let completeResponse: string[] = []
 		let completedData: any = null;
 
-		const processTextStreamChunk = (chunk: Uint8Array) => {
-			buffer += new TextDecoder('utf-8').decode(chunk);
-			const lines = buffer.split('\r\n');
-
-			for (let i = 0; i < lines.length - 1; i++) {
-				const line = lines[i].trim();
-
-				if (!line) continue;
-
-				if (line.startsWith('data:')) {
-					const dataMessage = line.substring(5).trim();
-					// console.debug(`Data: ${dataMessage}\n`);
-					if (dataMessage && dataMessage !== '[DONE]') {
-						try {
-							const dataObject = JSON.parse(dataMessage);
-							completedData = dataObject;
-							/**
-							 * NOTE: In streaming, `dataObject.choices[0]?.text` contains a single token.
-							 *
-							 * If streaming directly to UI components, this object can be used instead
-							 * of waiting for the response to end.
-							 */
-							completeResponse.push(dataObject.choices[0]?.text)
-						} catch (error) {
-							console.error('Error parsing JSON:', error);
-							throw new Error("JSON Parsing error.")
-						}
-					}
-					continue;
-				}
-			}
-
-			buffer = lines[lines.length - 1];
+		const reader = response.body?.pipeThrough(new TextDecoderStream()).getReader();
+		if (!reader) {
+			throw new Error('Response body is unreadable or cannot be decoded as text.');
 		};
 
 		while (true) {
+			let dataDone = false;
 			const { done, value } = await reader.read();
 
-			if (done) {
+			if (done || dataDone) {
 				if (completedData) {
-					completedData.choices[0].text = completeResponse.join('');
+					completedData.response = completeResponse.join('');
 					return completedData;
 				}
 				throw new Error("Error in response stream or incomplete stream received.")
 			}
-			processTextStreamChunk(value!);
+
+			buffer += value;
+			const lines = buffer.split('\n');
+
+			lines.forEach((data) => {
+				const line = data.trim();
+
+				if (!line) return;
+				if (!line.startsWith('data:')) return;
+				if (line === 'data: [DONE]') return;
+
+				const dataMessage = line.substring(5).trim();
+				logger.debug(`Data: ${dataMessage}\n`);
+
+				try {
+					const dataObject = JSON.parse(dataMessage);
+					completedData = dataObject;
+
+					/**
+					 * NOTE:
+					 * In a streaming response, `responseChunk` will contain a single token.
+					 * If streaming directly to UI components, yield every `responseChunk`.
+					 */
+					const responseChunk: string = dataObject.choices[0]?.text || dataObject.choices[0]?.delta?.content || '';
+					completeResponse.push(responseChunk);
+					buffer = '';
+				} catch (error) {
+					logger.debug('Received non-JSON stream chunk:', line);
+				}
+			});
 		}
 
 	};
@@ -199,6 +203,8 @@ export class Model {
 
 		const contentType = response.headers.get('content-type');
 		const responseIsStream = contentType && contentType.includes('text/event-stream')
+
+		logger.debug("Response is of type " + contentType);
 
 		if (!responseIsStream) {
 			jsonResponse = await response.json();
@@ -224,10 +230,11 @@ export class Model {
 
 		const presetAction = job.context.action;
 
-		if (!job.prompt) throw new ModelError("Can not run inference", "No prompt found", job);
+		if (!(job.prompt || job.messages)) throw new ModelError("Can not run inference", "No prompt or messages array found.", job);
 
 		const postData: RequestPayload = {
 			prompt: job.prompt,
+			messages: job.messages,
 			preset: presetAction,
 			chat_id: job.context.chatID,
 			situation_id: job.context.situation,
@@ -248,7 +255,7 @@ export class Model {
 			// jobResponse.runtime && (this.runtime += jobResponse.runtime);
 
 			if (!jobResponse.id) {
-				// console.info(jobResponse);
+				// logger.debug(jobResponse);
 				throw new Error("Job ID not found!");
 			}
 			// if (jobResponse.status != "COMPLETED") {
@@ -259,7 +266,7 @@ export class Model {
 		}).catch((e) => {
 			// db.prompts.add({ timeStamp: Date.now(), prompt: job.prompt || "No prompt found", result: "ERROR: " + JSON.stringify(e), config: JSON.stringify(this.modelConfig) });
 
-			console.error(e);
+			logger.error(e);
 
 			throw new ModelError("Job failed!", "Invalid response.", job, undefined, e instanceof Error ? e : undefined);
 		})

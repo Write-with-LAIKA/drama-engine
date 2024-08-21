@@ -1,4 +1,5 @@
-import { KeyValueRecord, StateTypes } from "./database";
+import { KeyValueRecord, StateTypes } from "./db/database";
+import { logger } from "./utils/logging-utils";
 
 export type Tag = "none" | "event" | "action";
 export type Category = "greeting" | "confirmation" | "sign-off";
@@ -52,22 +53,22 @@ export const evaluateCondition = (condition: Condition, worldState: KeyValueReco
 			break;
 	}
 
-	if (typeof condition.tag == "string") { 
+	if (typeof condition.tag == "string") {
 		const entry = worldState.find(entry => entry.key == condition.tag);
 
 		if (!entry) {
-			console.error("Invalid trigger: '" + condition.tag + "' not found in world state.")
+			logger.error("Invalid trigger: '" + condition.tag + "' not found in world state.")
 			return false; // entry not found
 		}
-		if (condition.value && typeof condition.value != typeof entry.value) { 
-			console.error("Invalid trigger: " + condition.tag + " has a different type than the corresponding world state.")
+		if (condition.value && typeof condition.value != typeof entry.value) {
+			logger.error("Invalid trigger: " + condition.tag + " has a different type than the corresponding world state.")
 			return false; // entry not found
 		}
 
 		// we check for an interval
 		if (typeof entry.value == "number" && condition.value == undefined)
 			return entry.value >= min && entry.value < max;
-		
+
 		// we compare to a value
 		return (entry.value === condition.value);
 	}

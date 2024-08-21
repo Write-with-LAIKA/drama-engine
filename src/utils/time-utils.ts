@@ -29,7 +29,7 @@ export const timeToString = (date: Date) => {
 	const seconds = "0" + date.getSeconds();
 
 	return hours + ':' + minutes.substring(-2) + ':' + seconds.substring(-2);
-	// console.log(formattedTime);
+	// logger.debug(formattedTime);
 }
 
 export function formatRelativeDate(date: number) {
