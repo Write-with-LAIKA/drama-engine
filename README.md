@@ -1,19 +1,14 @@
-# 🏰 Drama Engine
-
-A library for agent orchestration
-
-*DISCLAIMER: This package is a work in progress. We aim to officially announce it in the next weeks and then more documentation will be made available. For now, feel free to play around and read code but maybe don't use it for anything important yet.*
+# 🏰 Drama Engine: A Framework for Narrative Agents
 
 ## 🎭 About the Drama Engine
 
-The Drama Engine is a framework for agentic interaction with language models. It is written in TypeScript to execute in any browser. The Drama Engine is model- and provider-agnostic. We’ve built the Drama Engine for use in our Writers Room and that makes it focused on working with text but it can be used for any multi-participant chat.
+The Drama Engine is a framework for agentic interaction with language models. It is written in TypeScript to execute in any browser enabling front-end developers to directly work with agents. The Drama Engine is model- and provider-agnostic. We’ve built the Drama Engine for use in our Writers Room. That means it is currently focussed on processing text.
 
 ### Core features
 
-- Multi-agent workflows with delegation
-- Dynamic prompt assembly
-- Model-agnostic
-- Vendor-agnostic
+- Multi-agent workflows with delegation: The conversation between several agents is orchestrated via a moderator. Agents can delegate more complex tasks to chains of deputies.
+- Dynamic prompt assembly: The prompt sent to the back-end is assembled based on context. This context includes data about other chat participants, the task, the state of the agent, the materials necessary to complete the task, and so on. Details below.
+- Model- and vendor-agnostic: When run locally, the Drama Engine can use any back-end that supports OpenAI’s API standard. We have tested it with Together AI’s services The framework works with any language model. It supports ChatML and Mistral prompt formats. We are using the framework with teknium’s `OpenHermes-2p5-Mistral-7B4` and Mistral’s `Mixtral-8x7B-Instruct-v0.15` in production.
 
 At the heart of the drama engine are different kinds of companions and their orchestration. Some companions are agents that simulate a personality. They can change over time and interact with each other. These companions use deputies to run ad-hoc chains of prompts that allow for a mix of different prompting techniques. A deputy might use a few-shot prompt to an instruction-tuned model while its host companion talks to the user by calling a chat-tuned model. This way, dynamic sequences of prompting (e.g. text summary, but only if the text is too long -> text analysis -> discussion about the analysis) can be configured in a modular way. The resulting system is far more flexible than prompt chains.
 
@@ -55,7 +50,7 @@ The drama engine accepts a few configuration options while initialisation.
 - `additionalOptions`: An `Options` object from `Ky`. You can set your own additional headers, retry options, etc. here. Refer to `Ky` documentation for more info.
 - `chatModeOverride`: An optional `boolean` variable. Default `false`. By default, if the value of `DE_ENDPOINT_URL` contains `chat/completions`, the library will switch to "chat" mode and use the `messages` array as the LLM input. If your endpoint is different, you can override this behaviour by passing a different value here.
 
-### Note on Authorization / API keys
+### Note on Authorization and API keys
 
 If a `kyInstance` or `additionalOptions` is provided, the library will check the following headers for API keys: `x-api-key`, `x-auth-token`, `authorization`.
 
@@ -125,7 +120,6 @@ callback && callback(chat); // call callback manually
 
 ```
 
-
 Run a conversation with up to 4 replies:
 
 ```javascript
@@ -183,7 +177,7 @@ The `Context` class is huge but well documented. The actual act of prompting the
 
 Depending on whether the endpoint is `chat/completions` type or not i.e, the value of `chatMode`, the library decides whether to use `prompt` or `messages` as inputs to the LLM.
 
-This is performed on the fly depending on the context in the `assemblePrompt` function of the `Prompter` class. The function takes a `Context` object, the world state database, and, generates a list of `messages` using decorators and other mechanisms. If the function's `returnChat` value is `true` or `(drama|chat.drama).chatMode` is set to `true`, the list of messages are returned as is to be used directly with the `chat/completions` endpoint. Otherwise, the function applies the model's (or job's) template (e.g., ChatML) to tranform these messages into a single `prompt` string.
+This is performed on the fly depending on the context in the `assemblePrompt` function of the `Prompter` class. The function takes a `Context` object, the world state database, and, generates a list of `messages` using decorators and other mechanisms. If the function's `returnChat` value is `true` or `(drama|chat.drama).chatMode` is set to `true`, the list of messages are returned as is to be used directly with the `chat/completions` endpoint. Otherwise, the function applies the model's (or job's) template (e.g., ChatML) to transform these messages into a single `prompt` string.
 
 Decorators are simple replacement-based templates that are used to tag specific pieces of information for referencing them in a job. E.g. the decorator `USER TEXT=\"{{DATA}}\"."` is used to label the user-provided textual data as `USER TEXT`, so a job can use “Summarise the USER TEXT” as part of an instruction/prompt and the model will know where to find the text (in most cases). The prompter also adds some default information like the current data and time.
 
@@ -209,9 +203,9 @@ This library was developed to power our live product, [Writers Room](https://wr.
 
 ## 🛸 Intended Use
 
-The intended way for working with the Drama Engine is to first define companions and their actions. The you set up individual chats or group chats with them. In order to display the chat and make the actions available, some interface work is necessary. As you can see above, all the chat history is always in the Chat object and there's a callback for whenever a new message comes in.
+The intended way for working with the Drama Engine is to first define companions and their actions. The you set up individual chats or group chats with them. In order to display the chat and make the actions available, some interface work is necessary. As you can see above, all the chat history is always in the `Chat` object and there's a callback for whenever a new message comes in.
 
-## Extending the Drama Engine
+## ⚙️ Extending the Drama Engine
 
 The easiest way to extend the current functionality of the Drama Engine is to write new instruction deputies. Those just have a job defined that replaces most of the deputy prompt when sent to the model. The companion hosting the deputy then directly forwards the prompt’s result as if they had replied by themselves. Adding a new instruction deputy requires a line defining the deputy and another one defining an action that uses this deputy.
 
@@ -221,17 +215,28 @@ Finally, reply functions allow for a wide range of customisation of companion be
 
 ## 🏆 Contributing
 
-Pull requests and feature requests are very welcome.
+Pull requests and feature requests are very welcome. New deputies should be added to the folder `src/companions/contrib`. The file `test-deputy.ts` contains a template to start with.
 
-## Citation
+## 📚 Citation
 
-If you want to cite the Drama Engine in a paper, you can use the following BibTex:
+If you want to cite the Drama Engine in a paper, you can use the following BibTex. A full documentation of the Drama Engine can be found in the [Technical Report](./documentation/Drama%20Engine%20Technical%20Report.pdf).
 
-```
+```bibtex
 @software{pichlmairmartinDramaEngine2024,
-  title = {Drama {{Engine}}},
-  author = {{Pichlmair, Martin} and {Raj, Riddhi}},
+  title = {Drama {{Engine}}: {{A Framework}} for {{Narrative Agents}}},
+  author = {Pichlmair, Martin and Raj, Riddhi and Putney, Charlene},
   year = {2024},
-  abstract = {A library for agent orchestration}
 }
+
+@techreport{pichlmairDramaEngineFramework2024,
+  type = {Technical {{Report}}},
+  title = {Drama {{Engine}}: {{A Framework}} for {{Narrative Agents}}},
+  author = {Pichlmair, Martin and Raj, Riddhi and Putney, Charlene},
+  year = {2024},
+  month = aug,
+  address = {Copenhagen, Denmark},
+  institution = {Write with LAIKA},
+}
+
+
 ```
