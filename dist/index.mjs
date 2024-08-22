@@ -133,7 +133,7 @@ var defaultPromptTemplates = {
 
 // src/config/models.ts
 var defaultModelConfig = {
-  model: "teknium/OpenHermes-2p5-Mistral-7B",
+  model: "NousResearch/Nous-Hermes-2-Mistral-7B-DPO",
   n: 1,
   presence_penalty: 0,
   frequency_penalty: 0,
@@ -290,10 +290,6 @@ var _Companion = class _Companion {
     this.interactions = 0;
     this.actions = 0;
     this.status = "active";
-    this.configuration.modelConfig = configuration.modelConfig || defaultModelConfig;
-    if (configuration.temperature) {
-      this.configuration.modelConfig.temperature = configuration.temperature;
-    }
     return this;
   }
   // id is unique and if companion has the same it's the same companion
@@ -340,6 +336,9 @@ var AutoCompanion = class _AutoCompanion extends Companion {
       }
       return context;
     };
+    this.getModelConfig = (drama) => {
+      return { ...drama.defaultModelConfig, ...this.configuration.modelConfig };
+    };
     this.runInference = async (chat, context, recipient, sender) => {
       const deputyDecorators = context && sender && sender?.decorators;
       const newContext = context || new Context(this, chat.companions, chat.id, chat.situation, []);
@@ -348,7 +347,7 @@ var AutoCompanion = class _AutoCompanion extends Companion {
         id: "internal",
         remoteID: "",
         status: "new",
-        modelConfig: this.configuration.modelConfig,
+        modelConfig: this.getModelConfig(chat.drama),
         prompt: typeof input === "string" ? input : void 0,
         messages: typeof input !== "string" ? input : void 0,
         context: newContext,
@@ -383,14 +382,14 @@ var Deputy = class extends AutoCompanion {
       const document = context.query();
       return document != void 0 && document.trim().length >= 2e3;
     };
-    this.newDeputyJob = (input, context, situation) => {
+    this.newDeputyJob = (input, context, situation, modelConfig) => {
       const newContext = context || new Context(this, [], "", situation || "deputy", []);
       const inputData = { prompt: typeof input === "string" ? input : void 0, messages: typeof input !== "string" ? input : void 0 };
       const job = {
         id: "internal",
         remoteID: "",
         status: "new",
-        modelConfig: this.configuration.modelConfig,
+        modelConfig,
         context: newContext,
         timeStamp: Date.now(),
         ...inputData
@@ -588,7 +587,7 @@ ${username}: A guest user in the chatroom.
         void 0,
         this.drama.chatMode
       );
-      const job = this.newDeputyJob(input, newContext);
+      const job = this.newDeputyJob(input, newContext, void 0, this.getModelConfig(chat.drama));
       try {
         const jobResponse = await chat.drama.runJob(job);
         if (jobResponse && jobResponse.response) {
@@ -611,7 +610,9 @@ _ModeratorDeputy.config = {
   description: "This is an internal bot for instruction-based inferences.",
   base_prompt: "",
   kind: "shell",
-  temperature: 0
+  modelConfig: {
+    temperature: 0
+  }
 };
 var ModeratorDeputy = _ModeratorDeputy;
 
@@ -781,7 +782,9 @@ _InstructionDeputy.config = {
   description: "This deputy sets a job for the companion to act out.",
   base_prompt: "",
   kind: "shell",
-  temperature: 0
+  modelConfig: {
+    temperature: 0
+  }
 };
 var InstructionDeputy = _InstructionDeputy;
 
@@ -803,7 +806,9 @@ _TestDeputy.config = {
   description: "Just for testing",
   base_prompt: "",
   kind: "shell",
-  temperature: 0
+  modelConfig: {
+    temperature: 0
+  }
 };
 var TestDeputy = _TestDeputy;
 
@@ -876,13 +881,14 @@ var ModelError = class _ModelError extends Error {
   }
 };
 var Model = class {
+  // promptTemplate: PromptTemplate = this.modelConfig.extra.template;
+  // promptConfig: PromptConfig = this.modelConfig.extra.promptConfig;
   /**
    * Creates an instance of Model.
    * @param {string}
    * @memberof Model
    */
-  constructor(path) {
-    this.modelConfig = defaultModelConfig;
+  constructor(path, modelConfig = defaultModelConfig) {
     /**
      * All tokens sent to the model
      *
@@ -904,8 +910,6 @@ var Model = class {
      * @memberof Model
      */
     this.runtime = 0;
-    this.promptTemplate = this.modelConfig.extra.template;
-    this.promptConfig = this.modelConfig.extra.promptConfig;
     this.jsonToJobResponse = (jsonResponse) => {
       try {
         const jobResponse = {
@@ -1033,8 +1037,15 @@ var Model = class {
         throw new ModelError("Job failed!", "Invalid response.", job, void 0, e instanceof Error ? e : void 0);
       });
     };
+    this.modelConfig = modelConfig;
     this.path = path.startsWith("/") ? path.slice(1) : path;
     return this;
+  }
+  get promptTemplate() {
+    return this.modelConfig.extra.template;
+  }
+  get promptConfig() {
+    return this.modelConfig.extra.promptConfig;
   }
 };
 
@@ -1198,7 +1209,7 @@ var Prompter = class {
 
 // src/drama.ts
 var Drama = class _Drama {
-  constructor(companionConfigs, database, worldState, kyInstance, additionalOptions, chatModeOverride) {
+  constructor(companionConfigs, database, worldState, kyInstance, kyOptions, defaultModel, chatModeOverride) {
     this.companions = [];
     this.worldState = [];
     this.jobs = [];
@@ -1464,12 +1475,13 @@ var Drama = class _Drama {
     this.worldState = worldState;
     const apiEndpoint = process.env.DE_ENDPOINT_URL || process.env.NEXT_PUBLIC_DE_ENDPOINT_URL || "v1/completions";
     this.chatMode = chatModeOverride === void 0 ? apiEndpoint.includes("chat/completions") : chatModeOverride;
-    this.model = new Model(apiEndpoint);
+    this.model = new Model(apiEndpoint, defaultModel);
     this.prompter = new Prompter(this.model.promptTemplate);
     this.instance = kyInstance;
     this.database = database;
-    this.additionalOptions = additionalOptions;
+    this.additionalOptions = kyOptions;
     this.companions = companionConfigs.map((c) => new c.class(c, this));
+    this.defaultModelConfig = defaultModel || defaultModelConfig;
     logger.info("DRAMA ENGINE // INITIATED");
     return this;
   }
@@ -1514,9 +1526,9 @@ var Drama = class _Drama {
     }
     return additionalOptionsWithPrefix;
   }
-  static async initialize(defaultSituation, companionConfigs, kyInstance = ky, database = new InMemoryDatabase(), additionalOptions, chatModeOverride) {
+  static async initialize(defaultSituation, companionConfigs, defaultModel = defaultModelConfig, kyInstance = ky, kyOptions, database = new InMemoryDatabase(), chatModeOverride) {
     const worldState = await database.world() || [];
-    const newAdditionalOptions = this.checkAdditionalOptions(additionalOptions);
+    const newAdditionalOptions = this.checkAdditionalOptions(kyOptions);
     if (!companionConfigs.find((c) => c.kind == "user"))
       companionConfigs = [
         ...companionConfigs,
@@ -1530,7 +1542,7 @@ var Drama = class _Drama {
           kind: "user"
         }
       ];
-    const drama = new _Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, chatModeOverride);
+    const drama = new _Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, defaultModel, chatModeOverride);
     drama.companions.forEach((companion) => {
       const interactions = worldState.find((w) => w.key == "COMPANION_INTERACTIONS_" + companion.id.toUpperCase());
       if (interactions && typeof interactions.value == "number")

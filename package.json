@@ -1,6 +1,6 @@
 {
   "name": "@write-with-laika/drama-engine",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "A framework for narrative agents",
   "main": "dist/index.ts",
   "module": "dist/index.mjs",
@@ -24,7 +24,7 @@
     "characters"
   ],
   "author": "Write with LAIKA",
-  "license": "BSD-3-Clause",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/Write-with-LAIKA/drama-engine/issues"
   },

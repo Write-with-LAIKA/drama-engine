@@ -138,6 +138,7 @@ declare class Drama {
     additionalOptions?: Options;
     prompter: Prompter;
     chatMode: boolean;
+    defaultModelConfig: ModelConfig;
     companions: AutoCompanion[];
     worldState: KeyValueRecord[];
     jobs: Job[];
@@ -145,7 +146,7 @@ declare class Drama {
     private constructor();
     private static isAuthTokenAvailable;
     private static checkAdditionalOptions;
-    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], kyInstance?: KyInstance, database?: Database, additionalOptions?: Options, chatModeOverride?: boolean): Promise<Drama>;
+    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], defaultModel?: ModelConfig, kyInstance?: KyInstance, kyOptions?: Options, database?: Database, chatModeOverride?: boolean): Promise<Drama>;
     reset: () => Promise<void>;
     increaseWorldStateEntry: (key: string, value: number) => Promise<void>;
     setWorldStateEntry: (key: string, value: StateTypes) => Promise<void>;
@@ -189,10 +190,36 @@ declare class AutoCompanion extends Companion {
     evaluateReplyTrigger: (replyTrigger: ReplyTriggerTypes | ReplyTriggerTypes[], context: Context, sender?: AutoCompanion) => boolean;
     registerReply: (trigger: ReplyTriggerTypes | ReplyTriggerTypes[], replyFunction: ReplyFunctionAsync, front?: boolean) => void;
     generateReply: (chat: Chat, context: Context, sender?: AutoCompanion) => Promise<Context>;
+    getModelConfig: (drama: Drama) => {
+        model: string;
+        n: number;
+        presence_penalty: number;
+        frequency_penalty: number;
+        repetition_penalty: number;
+        temperature: number;
+        max_tokens: number;
+        top_p: number;
+        top_k: number;
+        stop: string;
+        stop_token_ids: number[];
+        ignore_eos: boolean;
+        skip_special_tokens: boolean;
+        spaces_between_special_tokens: boolean;
+        stream: boolean;
+        extra: {
+            template: {
+                bos_token: string;
+                eos_token: string;
+                unk_token: string;
+                chat_template: string;
+            };
+            promptConfig: PromptConfig;
+        };
+    };
     runInference: (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion) => Promise<CompanionReply>;
 }
 
-type ContextDataTypes = "companionNames" | // The other companions around
+type ContextDataTypes = "companionNames" | // The other companions around, comma-separated
 "error" | // An error that occurred
 "conversationID" | // A conversation can have multiple turns. They all share an ID
 "chat" | // The compressed chat history (only for the moderator & care bot)
@@ -343,14 +370,14 @@ declare class Model {
      * @memberof Model
      */
     runtime: number;
-    promptTemplate: PromptTemplate;
-    promptConfig: PromptConfig;
+    get promptTemplate(): PromptTemplate;
+    get promptConfig(): PromptConfig;
     /**
      * Creates an instance of Model.
      * @param {string}
      * @memberof Model
      */
-    constructor(path: string);
+    constructor(path: string, modelConfig?: ModelConfig);
     private jsonToJobResponse;
     /**
      * Builds a complete response object from an event-stream response.
@@ -531,8 +558,7 @@ type CompanionConfig = {
     mottos?: ConditionalLine[];
     actions?: ActionDescription[];
     triggers?: TriggerDescription[];
-    modelConfig?: ModelConfig;
-    temperature?: number;
+    modelConfig?: Partial<ModelConfig>;
     scope?: CompanionScope;
 };
 declare abstract class Companion {
@@ -574,7 +600,7 @@ declare abstract class Deputy extends AutoCompanion {
     constructor(configuration: CompanionConfig, drama: Drama);
     wantsToSummarise: (context: Context, sender?: AutoCompanion) => boolean;
     protected abstract runAction(chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion): Promise<CompanionReply>;
-    protected newDeputyJob: (input?: string | Messages, context?: Context, situation?: string) => Job;
+    protected newDeputyJob: (input?: string | Messages, context?: Context, situation?: string, modelConfig?: ModelConfig) => Job;
     private checkForSelection;
     protected pickRandomParagraph: (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion) => Promise<CompanionReply>;
     protected pickLastParagraph: (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion) => Promise<CompanionReply>;
