@@ -6,9 +6,9 @@ The Drama Engine is a framework for agentic interaction with language models. It
 
 ### Core features
 
-- Multi-agent workflows with delegation: The conversation between several agents is orchestrated via a moderator. Agents can delegate more complex tasks to chains of deputies.
-- Dynamic prompt assembly: The prompt sent to the back-end is assembled based on context. This context includes data about other chat participants, the task, the state of the agent, the materials necessary to complete the task, and so on. Details below.
-- Model- and vendor-agnostic: When run locally, the Drama Engine can use any back-end that supports OpenAI’s API standard. We have tested it with Together AI’s services The framework works with any language model. It supports ChatML and Mistral prompt formats. We are using the framework with teknium’s `OpenHermes-2p5-Mistral-7B4` and Mistral’s `Mixtral-8x7B-Instruct-v0.15` in production.
+- *Multi-agent workflows with delegation*: The conversation between several agents is orchestrated via a moderator. Agents can delegate more complex tasks to chains of deputies.
+- *Dynamic prompt assembly*: The prompt sent to the back-end is assembled based on context. This context includes data about other chat participants, the task, the state of the agent, the materials necessary to complete the task, and so on. Details below.
+- *Model- and vendor-agnostic*: When run locally, the Drama Engine can use any back-end that supports OpenAI’s API standard. We have tested it with Together AI’s services The framework works with any language model. It supports ChatML and Mistral prompt formats. We are using the framework with Nous Research's `NousResearch/Nous-Hermes-2-Mistral-7B-DPO` and Mistral’s `mistralai/Mixtral-8x7B-Instruct-v0.1` in production.
 
 At the heart of the drama engine are different kinds of companions and their orchestration. Some companions are agents that simulate a personality. They can change over time and interact with each other. These companions use deputies to run ad-hoc chains of prompts that allow for a mix of different prompting techniques. A deputy might use a few-shot prompt to an instruction-tuned model while its host companion talks to the user by calling a chat-tuned model. This way, dynamic sequences of prompting (e.g. text summary, but only if the text is too long -> text analysis -> discussion about the analysis) can be configured in a modular way. The resulting system is far more flexible than prompt chains.
 

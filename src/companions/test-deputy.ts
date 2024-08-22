@@ -15,7 +15,9 @@ export class TestDeputy extends Deputy {
 		description: "Just for testing",
 		base_prompt: "",
 		kind: "shell",
-		temperature: 0,
+		modelConfig: {
+			temperature: 0
+		}
 	}
 
 	constructor(configuration: CompanionConfig = TestDeputy.config, drama: Drama) {

@@ -70,7 +70,7 @@ export class ModelError extends Error {
  * @class Model
  */
 export class Model {
-	private modelConfig: ModelConfig = defaultModelConfig;
+	private modelConfig: ModelConfig;
 	private path: string;
 
 	/**
@@ -94,15 +94,23 @@ export class Model {
 	 * @memberof Model
 	 */
 	runtime: number = 0.0;
-	promptTemplate: PromptTemplate = this.modelConfig.extra.template;
-	promptConfig: PromptConfig = this.modelConfig.extra.promptConfig;
+	get promptTemplate(): PromptTemplate {
+		return this.modelConfig.extra.template;
+	}
+	get promptConfig(): PromptConfig {
+		return this.modelConfig.extra.promptConfig;
+	}
+
+	// promptTemplate: PromptTemplate = this.modelConfig.extra.template;
+	// promptConfig: PromptConfig = this.modelConfig.extra.promptConfig;
 
 	/**
 	 * Creates an instance of Model.
 	 * @param {string}
 	 * @memberof Model
 	 */
-	constructor(path: string) {
+	constructor(path: string, modelConfig: ModelConfig = defaultModelConfig) {
+		this.modelConfig = modelConfig;
 		this.path = path.startsWith('/') ? path.slice(1) : path;
 		return this;
 	}

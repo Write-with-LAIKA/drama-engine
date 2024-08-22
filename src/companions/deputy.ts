@@ -1,5 +1,5 @@
 import { Chat } from "../chat";
-import { largeContextModelConfig } from "../config/models";
+import { largeContextModelConfig, ModelConfig } from "../config/models";
 import { Context } from "../context";
 import { Drama } from "../drama";
 import { Job } from "../job";
@@ -51,7 +51,7 @@ export abstract class Deputy extends AutoCompanion {
 
 	protected abstract runAction(chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion): Promise<CompanionReply>;
 
-	protected newDeputyJob = (input?: string | Messages, context?: Context, situation?: string) => {
+	protected newDeputyJob = (input?: string | Messages, context?: Context, situation?: string, modelConfig?: ModelConfig) => {
 		const newContext: Context = context || new Context(this, [], "", situation || "deputy", []);
 
 		const inputData = { prompt: typeof input === "string" ? input : undefined, messages: typeof input !== "string" ? input : undefined };
@@ -60,7 +60,7 @@ export abstract class Deputy extends AutoCompanion {
 			id: "internal",
 			remoteID: "",
 			status: "new",
-			modelConfig: this.configuration.modelConfig,
+			modelConfig: modelConfig,
 			context: newContext,
 			timeStamp: Date.now(),
 			...inputData,

@@ -59,6 +59,10 @@ export class AutoCompanion extends Companion {
 		return context;
 	}
 
+	getModelConfig = (drama: Drama) => { 
+		return { ...drama.defaultModelConfig, ...this.configuration.modelConfig }
+	}
+
 	runInference = async (chat: Chat, context: Context, recipient?: AutoCompanion, sender?: AutoCompanion): Promise<CompanionReply> => {
 		const deputyDecorators = context && sender && (sender as Deputy)?.decorators;
 
@@ -69,7 +73,7 @@ export class AutoCompanion extends Companion {
 			id: "internal",
 			remoteID: "",
 			status: "new",
-			modelConfig: this.configuration.modelConfig,
+			modelConfig: this.getModelConfig(chat.drama),
 			prompt: typeof input === "string" ? input : undefined,
 			messages: typeof input !== "string" ? input : undefined,
 			context: newContext,

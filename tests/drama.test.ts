@@ -49,8 +49,7 @@ test('Initialised drama engine correctly', async () => {
 }, 15000);
 
 test('Tested model per companion correctly', async () => {
-	const db: InMemoryDatabase = new InMemoryDatabase();
-	const drama = await Drama.initialize("co-working", [{ ...testCompanionConfigs[0], modelConfig: testModelConfig }], undefined, db);
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], testModelConfig);
 
 	const chats = drama.chats[0];
 	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
@@ -73,8 +72,7 @@ test('Tested model per companion correctly', async () => {
 test('Tested chat completions endpoint correctly', async () => {
 	process.env.DE_ENDPOINT_URL = 'v1/chat/completions'
 
-	const db: InMemoryDatabase = new InMemoryDatabase();
-	const drama = await Drama.initialize("co-working", [{ ...testCompanionConfigs[0], modelConfig: testModelConfig }], undefined, db);
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], testModelConfig);
 	const chats = drama.chats[0];
 	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
 	const situationID = 'co-working';
@@ -95,8 +93,7 @@ test('Tested chat completions endpoint correctly', async () => {
 
 
 test('Tested streaming correctly', async () => {
-	const db: InMemoryDatabase = new InMemoryDatabase();
-	const drama = await Drama.initialize("co-working", [{ ...testCompanionConfigs[0], modelConfig: streamingModelConfig }], undefined, db);
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], streamingModelConfig);
 	const chats = drama.chats[0];
 	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
 	const situationID = 'co-working';
