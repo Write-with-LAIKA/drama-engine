@@ -4,6 +4,8 @@
 
 The Drama Engine is a framework for agentic interaction with language models. It is written in TypeScript to execute in any browser enabling front-end developers to directly work with agents. The Drama Engine is model- and provider-agnostic. We’ve built the Drama Engine for use in our Writers Room. That means it is currently focussed on processing text.
 
+A more detailed documentation can be found in the [Drama Engine Technical Report](./documentation/Drama%20Engine%20Technical%20Report.pdf).
+
 ### Core features
 
 - *Multi-agent workflows with delegation*: The conversation between several agents is orchestrated via a moderator. Agents can delegate more complex tasks to chains of deputies.
