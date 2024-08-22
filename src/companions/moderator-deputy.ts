@@ -16,7 +16,9 @@ export class ModeratorDeputy extends Deputy {
 		description: "This is an internal bot for instruction-based inferences.",
 		base_prompt: "",
 		kind: "shell",
-		temperature: 0,
+		modelConfig: {
+			temperature: 0
+		}
 	}
 
 	constructor(configuration: CompanionConfig = ModeratorDeputy.config, drama: Drama) {
@@ -141,11 +143,7 @@ ${username}: A guest user in the chatroom.
 		const input = chat.drama.prompter.assemblePrompt(this,
 			chat.drama.worldState, newContext, undefined, undefined, undefined, undefined, this.drama.chatMode);
 
-		const job = this.newDeputyJob(input, newContext);
-		// if (job.modelConfig) {
-		// 	job.modelConfig.max_tokens = 25;
-		// 	job.modelConfig.temperature = 0.2;
-		// }
+		const job = this.newDeputyJob(input, newContext, undefined, this.getModelConfig(chat.drama));
 
 		try {
 			const jobResponse = await chat.drama.runJob(job);

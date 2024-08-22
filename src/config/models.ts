@@ -1,10 +1,9 @@
 /*
 
 Context sizes:
-teknium/OpenHermes-2-Mistral-7B				8192	=> 30k characters (<4 letter tokens)
-teknium/OpenHermes-2p5-Mistral-7B			8192	=> 30k characters (<4 letter tokens)
 NousResearch/Nous-Hermes-2-Mistral-7B-DPO	32768	=> 120k characters (<4 letter tokens)
 NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO	32768	=> 120k characters (<4 letter tokens)
+
 
 1 token is ~4 characters.
 */
@@ -14,7 +13,7 @@ import { defaultPromptConfig, defaultPromptTemplates } from "./prompts";
 export type ModelConfig = typeof defaultModelConfig;
 
 export const defaultModelConfig = {
-	model: 'teknium/OpenHermes-2p5-Mistral-7B',
+	model: 'NousResearch/Nous-Hermes-2-Mistral-7B-DPO',
 	n: 1,
 	presence_penalty: 0,
 	frequency_penalty: 0,

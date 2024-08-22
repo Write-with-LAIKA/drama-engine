@@ -38,8 +38,7 @@ export type CompanionConfig = {
 	actions?: ActionDescription[],
 	triggers?: TriggerDescription[],
 
-	modelConfig?: ModelConfig,
-	temperature?: number,
+	modelConfig?: Partial<ModelConfig>,
 
 	scope?: CompanionScope;
 };
@@ -63,11 +62,6 @@ export abstract class Companion {
 		this.interactions = 0;
 		this.actions = 0;
 		this.status = "active";
-		this.configuration.modelConfig = configuration.modelConfig || defaultModelConfig;
-
-		if (configuration.temperature) {
-			this.configuration.modelConfig.temperature = configuration.temperature;
-		}
 
 		return this;
 	}

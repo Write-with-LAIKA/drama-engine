@@ -14,7 +14,9 @@ export class InstructionDeputy extends Deputy {
 		description: "This deputy sets a job for the companion to act out.",
 		base_prompt: "",
 		kind: "shell",
-		temperature: 0,
+		modelConfig: {
+			temperature: 0
+		}
 	}
 
 	constructor(configuration: CompanionConfig = InstructionDeputy.config, drama: Drama) {
