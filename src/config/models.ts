@@ -1,8 +1,8 @@
 /*
 
-Context sizes:
-NousResearch/Nous-Hermes-2-Mistral-7B-DPO	32768	=> 120k characters (<4 letter tokens)
-NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO	32768	=> 120k characters (<4 letter tokens)
+Context sizes as per LLM provider (Novita AI):
+teknium/openhermes-2.5-mistral-7b	4096	=> 15k characters (<4 letter tokens)
+Nous-Hermes-2-Mixtral-8x7B-DPO	32768	=> 120k characters (<4 letter tokens)
 
 
 1 token is ~4 characters.
@@ -13,7 +13,7 @@ import { defaultPromptConfig, defaultPromptTemplates } from "./prompts";
 export type ModelConfig = typeof defaultModelConfig;
 
 export const defaultModelConfig = {
-	model: 'NousResearch/Nous-Hermes-2-Mistral-7B-DPO',
+	model: 'teknium/openhermes-2.5-mistral-7b',
 	n: 1,
 	presence_penalty: 0,
 	frequency_penalty: 0,
@@ -43,15 +43,15 @@ export const defaultModelConfig = {
 export const largeContextModelConfig = {
 	...defaultModelConfig,
 
-	model: 'mistralai/Mixtral-8x7B-Instruct-v0.1', //'NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO',
+	model: 'Nous-Hermes-2-Mixtral-8x7B-DPO',
 	max_tokens: 512,
-	extra: {
-		template: defaultPromptTemplates.mistral,
-		promptConfig: {
-			max_prompt_length: 100000,
-			job_in_chat: false,
-			system_role_allowed: false,
-		},
-	}
+	// extra: {
+	// 	template: defaultPromptTemplates.mistral,
+	// 	promptConfig: {
+	// 		max_prompt_length: 100000,
+	// 		job_in_chat: false,
+	// 		system_role_allowed: false,
+	// 	},
+	// }
 }
 
