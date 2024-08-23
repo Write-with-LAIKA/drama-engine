@@ -6,6 +6,10 @@ The Drama Engine is a framework for agentic interaction with language models. It
 
 A more detailed documentation can be found in the [Drama Engine Technical Report](./documentation/Drama%20Engine%20Technical%20Report.pdf).
 
+Get the source code in the [Drama Engine git repository](https://github.com/Write-with-LAIKA/drama-engine).
+
+Test the Drama Engine in action [in the Writers Room](http://writers-room.com).
+
 ### Core features
 
 - *Multi-agent workflows with delegation*: The conversation between several agents is orchestrated via a moderator. Agents can delegate more complex tasks to chains of deputies.
@@ -22,7 +26,7 @@ Install using your favourite package manager:
 npm i @write-with-laika/drama-engine
 ```
 
-Or download the code from the [Drama Engine GitHub repository](https://github.com/Write-with-LAIKA/drama-engine).
+Or download the code directly from the [Drama Engine GitHub repository](https://github.com/Write-with-LAIKA/drama-engine).
 
 ## 🔧 Configuration
 
