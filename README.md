@@ -22,6 +22,8 @@ Install using your favourite package manager:
 npm i @write-with-laika/drama-engine
 ```
 
+Or download the code from the [Drama Engine GitHub repository](https://drama-engine.com).
+
 ## 🔧 Configuration
 
 ### Environment variables
