@@ -8,11 +8,35 @@ Nous-Hermes-2-Mixtral-8x7B-DPO	32768	=> 120k characters (<4 letter tokens)
 1 token is ~4 characters.
 */
 
-import { defaultPromptConfig, defaultPromptTemplates } from "./prompts";
+import { defaultPromptConfig, defaultPromptTemplates, PromptConfig } from "./prompts";
 
-export type ModelConfig = typeof defaultModelConfig;
+export type ModelConfig = {
+	model: string,
+	n: number,
+	presence_penalty: number,
+	frequency_penalty: number,
+	repetition_penalty: number,
 
-export const defaultModelConfig = {
+	temperature: number,
+	max_tokens: number,
+	top_p: number,
+	top_k: number,
+	// min_p: number,
+
+	stop: string[] | null,
+	stop_token_ids: number[],
+	ignore_eos: boolean,
+	skip_special_tokens: boolean,
+	spaces_between_special_tokens: boolean,
+	stream: boolean,
+
+	extra: {
+		template: typeof defaultPromptTemplates.chatml,
+		promptConfig: PromptConfig,
+	}
+};
+
+export const defaultModelConfig: ModelConfig = {
 	model: 'teknium/openhermes-2.5-mistral-7b',
 	n: 1,
 	presence_penalty: 0,
@@ -40,7 +64,7 @@ export const defaultModelConfig = {
 	}
 }
 
-export const largeContextModelConfig = {
+export const largeContextModelConfig: ModelConfig = {
 	...defaultModelConfig,
 
 	model: 'Nous-Hermes-2-Mixtral-8x7B-DPO',

@@ -29,8 +29,7 @@ declare const defaultPromptTemplates: {
     };
 };
 
-type ModelConfig = typeof defaultModelConfig;
-declare const defaultModelConfig: {
+type ModelConfig = {
     model: string;
     n: number;
     presence_penalty: number;
@@ -40,22 +39,18 @@ declare const defaultModelConfig: {
     max_tokens: number;
     top_p: number;
     top_k: number;
-    stop: string;
+    stop: string[] | null;
     stop_token_ids: number[];
     ignore_eos: boolean;
     skip_special_tokens: boolean;
     spaces_between_special_tokens: boolean;
     stream: boolean;
     extra: {
-        template: {
-            bos_token: string;
-            eos_token: string;
-            unk_token: string;
-            chat_template: string;
-        };
+        template: typeof defaultPromptTemplates.chatml;
         promptConfig: PromptConfig;
     };
 };
+declare const defaultModelConfig: ModelConfig;
 
 /**
  * Assemble the prompt.
@@ -200,7 +195,7 @@ declare class AutoCompanion extends Companion {
         max_tokens: number;
         top_p: number;
         top_k: number;
-        stop: string;
+        stop: string[] | null;
         stop_token_ids: number[];
         ignore_eos: boolean;
         skip_special_tokens: boolean;
