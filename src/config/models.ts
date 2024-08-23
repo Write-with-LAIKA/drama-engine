@@ -25,7 +25,7 @@ export const defaultModelConfig = {
 	top_k: 4,
 	// min_p: 0.05,
 
-	stop: undefined,
+	stop: "",
 	stop_token_ids: [
 		0
 	],
