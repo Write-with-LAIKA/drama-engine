@@ -1,8 +1,8 @@
 /*
 
-Context sizes as per LLM provider (Novita AI):
-teknium/openhermes-2.5-mistral-7b	4096	=> 15k characters (<4 letter tokens)
-Nous-Hermes-2-Mixtral-8x7B-DPO	32768	=> 120k characters (<4 letter tokens)
+Context sizes:
+NousResearch/Nous-Hermes-2-Mistral-7B-DPO	32768	=> 120k characters (<4 letter tokens)
+NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO	32768	=> 120k characters (<4 letter tokens)
 
 
 1 token is ~4 characters.
