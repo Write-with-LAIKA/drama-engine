@@ -14,7 +14,7 @@ import { Prompter } from "./prompter";
 import { logger } from "./utils/logging-utils";
 import { KyHeadersInit } from "ky/distribution/types/options";
 import { InMemoryDatabase } from "./db/in-memory-database";
-import { defaultModelConfig, ModelConfig } from "./config/models";
+import { defaultModelConfig, largeContextModelConfig, ModelConfig } from "./config/models";
 
 export class Drama {
 	model: Model;
@@ -24,6 +24,7 @@ export class Drama {
 	prompter: Prompter;
 	chatMode: boolean;
 	defaultModelConfig: ModelConfig;
+	defaultSummaryModelConfig: ModelConfig;
 
 	companions: AutoCompanion[] = [];
 	worldState: KeyValueRecord[] = [];
@@ -37,6 +38,7 @@ export class Drama {
 		kyInstance: KyInstance,
 		kyOptions?: Options,
 		defaultModel?: ModelConfig,
+		defaultSummaryModel?: ModelConfig,
 		chatModeOverride?: boolean,
 	) {
 		this.worldState = worldState;
@@ -51,6 +53,7 @@ export class Drama {
 		this.additionalOptions = kyOptions;
 		this.companions = companionConfigs.map(c => new c.class(c, this));
 		this.defaultModelConfig = defaultModel || defaultModelConfig;
+		this.defaultSummaryModelConfig = defaultSummaryModel || largeContextModelConfig;
 
 		logger.info("DRAMA ENGINE // INITIATED");
 
@@ -107,16 +110,20 @@ export class Drama {
 		return additionalOptionsWithPrefix;
 	}
 
-	static async initialize(defaultSituation: string,
+	static async initializeEngine(
+		defaultSituation: string,
 		companionConfigs: CompanionConfig[],
-		defaultModel: ModelConfig = defaultModelConfig,
 		kyInstance: KyInstance = ky,
-		kyOptions?: Options,
 		database: Database = new InMemoryDatabase(),
-		chatModeOverride?: boolean,
+		options?: {
+			defaultModel?: Partial<ModelConfig>,
+			summaryModel?: Partial<ModelConfig>,
+			kyOptions?: Options,
+			chatModeOverride?: boolean,
+		},
 	) {
 		const worldState = await database.world() || [];
-		const newAdditionalOptions: Options = this.checkAdditionalOptions(kyOptions);
+		const newAdditionalOptions: Options = this.checkAdditionalOptions(options?.kyOptions);
 
 		// Add the user if there is none
 		if (!companionConfigs.find(c => c.kind == "user"))
@@ -133,7 +140,10 @@ export class Drama {
 				},
 			];
 
-		const drama = new Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, defaultModel, chatModeOverride);
+		const drama = new Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, 
+			{ ...defaultModelConfig, ...options?.defaultModel },
+			{ ...largeContextModelConfig, ...options?.summaryModel },
+			options?.chatModeOverride);
 
 		// load interactions counters
 		drama.companions.forEach(companion => {
@@ -173,6 +183,24 @@ export class Drama {
 		})
 
 		return drama;
+
+	}
+
+	static async initialize(
+		defaultSituation: string,
+		companionConfigs: CompanionConfig[],
+		defaultModel: ModelConfig = defaultModelConfig,
+		kyInstance: KyInstance = ky,
+		kyOptions?: Options,
+		database: Database = new InMemoryDatabase(),
+		chatModeOverride?: boolean,
+	) {
+		return this.initializeEngine(defaultSituation, companionConfigs, kyInstance, database, {
+			defaultModel,
+			summaryModel: largeContextModelConfig,
+			kyOptions,
+			chatModeOverride
+		})
 	}
 
 	reset = async () => {

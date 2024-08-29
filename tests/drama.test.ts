@@ -2,7 +2,7 @@ import { expect, test } from '@jest/globals';
 import { ChatMessage, Companion, Context, Drama } from '../src';
 import { InMemoryDatabase } from '../src/db/in-memory-database';
 import { testCompanionConfigs } from './config/companions';
-import { streamingModelConfig, testModelConfig } from './config/models';
+import { partialModelConfig, streamingModelConfig, testModelConfig } from './config/models';
 
 const userTestPrompt = "Hey Anders, if our startups target is a small niche market, how do we expand and still keep our core values ?";
 
@@ -99,6 +99,29 @@ test('Tested streaming correctly', async () => {
 	const situationID = 'co-working';
 	const context = new Context(undefined, drama.companions, chatID, situationID);
 	const rounds = 5;
+
+	await drama.runChat(chats, rounds, context);
+
+	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
+	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();
+
+	await drama.runChat(chats, rounds, context);
+
+	chats.history.forEach((chatMsg: ChatMessage) => {
+		console.info(`${chatMsg.companion.configuration.name}: ${chatMsg.message}`);
+	});
+}, 15000);
+
+test('Tested partial model configuration', async () => {
+	const drama = await Drama.initializeEngine("co-working", [testCompanionConfigs[0]], undefined, undefined, {
+		defaultModel: partialModelConfig
+	});
+
+	const chats = drama.chats[0];
+	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
+	const situationID = 'co-working';
+	const context = new Context(undefined, drama.companions, chatID, situationID);
+	const rounds = 1;
 
 	await drama.runChat(chats, rounds, context);
 
