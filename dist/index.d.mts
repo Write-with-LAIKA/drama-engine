@@ -1,4 +1,3 @@
-import { KyInstance, Options } from 'ky';
 import { Template } from '@huggingface/jinja';
 
 type PromptConfig = {
@@ -128,20 +127,24 @@ declare class Prompter {
 
 declare class Drama {
     model: Model;
-    instance: KyInstance;
     database: Database;
-    additionalOptions?: Options;
     prompter: Prompter;
     chatMode: boolean;
     defaultModelConfig: ModelConfig;
+    defaultSummaryModelConfig: ModelConfig;
+    httpClient: any;
     companions: AutoCompanion[];
     worldState: KeyValueRecord[];
     jobs: Job[];
     chats: Chat[];
     private constructor();
-    private static isAuthTokenAvailable;
-    private static checkAdditionalOptions;
-    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], defaultModel?: ModelConfig, kyInstance?: KyInstance, kyOptions?: Options, database?: Database, chatModeOverride?: boolean): Promise<Drama>;
+    static initializeEngine(defaultSituation: string, companionConfigs: CompanionConfig[], database?: Database, options?: {
+        defaultModel?: Partial<ModelConfig>;
+        summaryModel?: Partial<ModelConfig>;
+        chatModeOverride?: boolean;
+        httpClient?: any;
+    }): Promise<Drama>;
+    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], defaultModel?: ModelConfig, database?: Database, chatModeOverride?: boolean, httpClient?: any): Promise<Drama>;
     reset: () => Promise<void>;
     increaseWorldStateEntry: (key: string, value: number) => Promise<void>;
     setWorldStateEntry: (key: string, value: StateTypes) => Promise<void>;
@@ -388,15 +391,17 @@ declare class Model {
      */
     private buildResponseFromStream;
     private processPOSTResponse;
+    private constructUrl;
+    private isAuthTokenAvailable;
+    private addHeaders;
+    private postRequest;
     /**
      * Call this function to run a job. Returns a job response and updates the local db.
      *
      * @param {Job} job
-     * @param {KyInstance} instance
-     * @param {Options} [additionalOptions]
      * @memberof Model
      */
-    runJob: (job: Job, instance: KyInstance, additionalOptions?: Options) => Promise<JobResponse | undefined>;
+    runJob: (job: Job, httpClient?: any) => Promise<JobResponse | undefined>;
 }
 
 type StateTypes = number | string | boolean;

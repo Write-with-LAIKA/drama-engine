@@ -1,4 +1,3 @@
-import ky, { KyInstance, Options } from "ky";
 import { v4 as uuidv4 } from "uuid";
 import { Chat, ChatMessage, ChatSpeakerSelection } from "./chat";
 import { AutoCompanion } from "./companions/auto-companion";
@@ -12,19 +11,17 @@ import { Job, JobStatus } from "./job";
 import { Model } from "./model";
 import { Prompter } from "./prompter";
 import { logger } from "./utils/logging-utils";
-import { KyHeadersInit } from "ky/distribution/types/options";
 import { InMemoryDatabase } from "./db/in-memory-database";
 import { defaultModelConfig, largeContextModelConfig, ModelConfig } from "./config/models";
 
 export class Drama {
 	model: Model;
-	instance: KyInstance;
 	database: Database;
-	additionalOptions?: Options;
 	prompter: Prompter;
 	chatMode: boolean;
 	defaultModelConfig: ModelConfig;
 	defaultSummaryModelConfig: ModelConfig;
+	httpClient: any;
 
 	companions: AutoCompanion[] = [];
 	worldState: KeyValueRecord[] = [];
@@ -35,11 +32,10 @@ export class Drama {
 		companionConfigs: CompanionConfig[],
 		database: Database,
 		worldState: KeyValueRecord[],
-		kyInstance: KyInstance,
-		kyOptions?: Options,
 		defaultModel?: ModelConfig,
 		defaultSummaryModel?: ModelConfig,
 		chatModeOverride?: boolean,
+		httpClient?: any,
 	) {
 		this.worldState = worldState;
 
@@ -48,82 +44,29 @@ export class Drama {
 
 		this.model = new Model(apiEndpoint, defaultModel);
 		this.prompter = new Prompter(this.model.promptTemplate);
-		this.instance = kyInstance;
 		this.database = database;
-		this.additionalOptions = kyOptions;
 		this.companions = companionConfigs.map(c => new c.class(c, this));
 		this.defaultModelConfig = defaultModel || defaultModelConfig;
 		this.defaultSummaryModelConfig = defaultSummaryModel || largeContextModelConfig;
+		this.httpClient = httpClient;
 
 		logger.info("DRAMA ENGINE // INITIATED");
 
 		return this;
 	}
 
-	private static isAuthTokenAvailable(headersInit?: KyHeadersInit): boolean {
-		if (headersInit) {
-			const headers = new Headers(headersInit as HeadersInit);
-
-			const authHeaderExists = (headers?.get("authorization")?.length || 0) > 0;
-			const apiKeyHeaderExists = (headers?.get("x-api-key")?.length || 0) > 0;
-			const authTokenHeaderExists = (headers?.get("x-auth-token")?.length || 0) > 0;
-
-			return authHeaderExists || apiKeyHeaderExists || authTokenHeaderExists;
-		}
-		return false;
-	}
-
-	private static checkAdditionalOptions(additionalOptions?: Options): Options {
-		let additionalOptionsWithPrefix: Options = additionalOptions || {};
-
-		if (additionalOptionsWithPrefix?.prefixUrl === undefined) {
-			additionalOptionsWithPrefix = {
-				prefixUrl: process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "",
-				...additionalOptionsWithPrefix,
-			};
-		}
-
-		const authTokenAvailable = this.isAuthTokenAvailable(additionalOptions?.headers);
-
-		if (!authTokenAvailable) {
-			let apiKey = process.env.DE_BACKEND_API_KEY;
-			if (!apiKey) {
-				apiKey = process.env.NEXT_PUBLIC_DE_BACKEND_API_KEY;
-				if (apiKey) {
-					logger.warn("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure this was intended behaviour.");
-				} else {
-					logger.warn("No API keys were found. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token. And the following variables: DE_BACKEND_API_KEY, NEXT_PUBLIC_DE_BACKEND_API_KEY. Ensure this was intended behaviour.");
-				}
-			}
-
-			additionalOptionsWithPrefix = {
-				...additionalOptionsWithPrefix,
-				headers: {
-					...(apiKey ? {
-						'Authorization': `Bearer ${apiKey}`,
-					} : {}),
-					...additionalOptionsWithPrefix?.headers,
-				},
-			};
-		}
-
-		return additionalOptionsWithPrefix;
-	}
-
 	static async initializeEngine(
 		defaultSituation: string,
 		companionConfigs: CompanionConfig[],
-		kyInstance: KyInstance = ky,
 		database: Database = new InMemoryDatabase(),
 		options?: {
 			defaultModel?: Partial<ModelConfig>,
 			summaryModel?: Partial<ModelConfig>,
-			kyOptions?: Options,
 			chatModeOverride?: boolean,
+			httpClient?: any,
 		},
 	) {
 		const worldState = await database.world() || [];
-		const newAdditionalOptions: Options = this.checkAdditionalOptions(options?.kyOptions);
 
 		// Add the user if there is none
 		if (!companionConfigs.find(c => c.kind == "user"))
@@ -140,10 +83,9 @@ export class Drama {
 				},
 			];
 
-		const drama = new Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, 
-			{ ...defaultModelConfig, ...options?.defaultModel },
+		const drama = new Drama(companionConfigs, database, worldState, { ...defaultModelConfig, ...options?.defaultModel },
 			{ ...largeContextModelConfig, ...options?.summaryModel },
-			options?.chatModeOverride);
+			options?.chatModeOverride, options?.httpClient);
 
 		// load interactions counters
 		drama.companions.forEach(companion => {
@@ -190,16 +132,15 @@ export class Drama {
 		defaultSituation: string,
 		companionConfigs: CompanionConfig[],
 		defaultModel: ModelConfig = defaultModelConfig,
-		kyInstance: KyInstance = ky,
-		kyOptions?: Options,
 		database: Database = new InMemoryDatabase(),
 		chatModeOverride?: boolean,
+		httpClient?: any,
 	) {
-		return this.initializeEngine(defaultSituation, companionConfigs, kyInstance, database, {
+		return this.initializeEngine(defaultSituation, companionConfigs, database, {
 			defaultModel,
 			summaryModel: largeContextModelConfig,
-			kyOptions,
-			chatModeOverride
+			chatModeOverride,
+			httpClient
 		})
 	}
 
@@ -320,7 +261,7 @@ export class Drama {
 	/* INFERENCES */
 
 	runJob = async (job: Job) => {
-		const response = await this.model.runJob(job, this.instance, this.additionalOptions);
+		const response = await this.model.runJob(job, this.httpClient);
 		response && job.context.addUsage(response);
 
 		logger.debug("runJob", job, "-->", response);

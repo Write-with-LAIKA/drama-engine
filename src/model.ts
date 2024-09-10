@@ -1,4 +1,3 @@
-import { KyInstance, Options } from "ky";
 import { ModelConfig, defaultModelConfig } from "./config/models";
 import { PromptConfig, PromptTemplate } from "./config/prompts";
 import { Job } from "./job";
@@ -224,16 +223,65 @@ export class Model {
 		return dataObject;
 	};
 
+	private constructUrl = (url: string) => {
+		const baseUrl = (process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "");
+		const newUrl = (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) + "/" + (url.startsWith("/") ? url.slice(1) : url);
+		return newUrl;
+	}
+
+	private isAuthTokenAvailable(headers?: Headers | HeadersInit): boolean {
+		if (headers) {
+			const newHeaders = new Headers(headers as HeadersInit);
+
+			const authHeaderExists = (newHeaders?.get("authorization")?.length || 0) > 0;
+			const apiKeyHeaderExists = (newHeaders?.get("x-api-key")?.length || 0) > 0;
+			const authTokenHeaderExists = (newHeaders?.get("x-auth-token")?.length || 0) > 0;
+
+			return authHeaderExists || apiKeyHeaderExists || authTokenHeaderExists;
+		}
+		return false;
+	}
+
+	private addHeaders(headers?: Headers | HeadersInit): Headers {
+		const newHeaders = new Headers(headers);
+		newHeaders.append("Accept", "application/json, text/event-stream");
+		newHeaders.append("Content-Type", "application/json");
+
+		const authTokenAvailable = this.isAuthTokenAvailable(newHeaders);
+
+		if (!authTokenAvailable) {
+			let apiKey = process.env.DE_BACKEND_API_KEY;
+			if (!apiKey) {
+				apiKey = process.env.NEXT_PUBLIC_DE_BACKEND_API_KEY;
+				if (apiKey) {
+					logger.warn("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure this was intended behaviour.");
+				} else {
+					logger.warn("No API keys were found. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token. And the following variables: DE_BACKEND_API_KEY, NEXT_PUBLIC_DE_BACKEND_API_KEY. Ensure this was intended behaviour.");
+				}
+			}
+
+			if (apiKey) {
+				newHeaders.set('Authorization', `Bearer ${apiKey}`,)
+			}
+		}
+		return newHeaders;
+	}
+
+	private postRequest = async (url: string, requestData: any, headers: Headers = new Headers()): Promise<Response> => {
+		return fetch(url, {
+			method: "POST",
+			headers: headers,
+			body: JSON.stringify(requestData),
+		});
+	}
 
 	/**
 	 * Call this function to run a job. Returns a job response and updates the local db.
 	 *
 	 * @param {Job} job
-	 * @param {KyInstance} instance
-	 * @param {Options} [additionalOptions]
 	 * @memberof Model
 	 */
-	runJob = async (job: Job, instance: KyInstance, additionalOptions?: Options): Promise<JobResponse | undefined> => {
+	runJob = async (job: Job, httpClient: any = this.postRequest): Promise<JobResponse | undefined> => {
 		let jobResponse: JobResponse | undefined = undefined;
 
 		const presetAction = job.context.action;
@@ -251,10 +299,10 @@ export class Model {
 		}
 		delete postData["extra"];
 
-		return instance.post(this.path, {
-			json: postData,
-			...additionalOptions
-		}).then(async (res) => {
+		const newUrl = this.constructUrl(this.path);
+		const newHeaders = this.addHeaders();
+
+		return httpClient(newUrl, postData, newHeaders).then(async (res: Response) => {
 			jobResponse = await this.processPOSTResponse(res);
 
 			// keep track of stats
@@ -271,7 +319,7 @@ export class Model {
 			// }
 
 			return jobResponse;
-		}).catch((e) => {
+		}).catch((e: Error | undefined) => {
 			// db.prompts.add({ timeStamp: Date.now(), prompt: job.prompt || "No prompt found", result: "ERROR: " + JSON.stringify(e), config: JSON.stringify(this.modelConfig) });
 
 			logger.error(e);

@@ -865,7 +865,6 @@ var InMemoryDatabase = class {
 };
 
 // src/drama.ts
-import ky from "ky";
 import { v4 as uuidv4 } from "uuid";
 
 // src/model.ts
@@ -997,15 +996,25 @@ var Model = class {
       const dataObject = this.jsonToJobResponse(jsonResponse);
       return dataObject;
     };
+    this.constructUrl = (url) => {
+      const baseUrl = process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "";
+      const newUrl = (baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl) + "/" + (url.startsWith("/") ? url.slice(1) : url);
+      return newUrl;
+    };
+    this.postRequest = async (url, requestData, headers = new Headers()) => {
+      return fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestData)
+      });
+    };
     /**
      * Call this function to run a job. Returns a job response and updates the local db.
      *
      * @param {Job} job
-     * @param {KyInstance} instance
-     * @param {Options} [additionalOptions]
      * @memberof Model
      */
-    this.runJob = async (job, instance, additionalOptions) => {
+    this.runJob = async (job, httpClient = this.postRequest) => {
       let jobResponse = void 0;
       const presetAction = job.context.action;
       if (!(job.prompt || job.messages)) throw new ModelError("Can not run inference", "No prompt or messages array found.", job);
@@ -1020,10 +1029,9 @@ var Model = class {
         // job can override parameters
       };
       delete postData["extra"];
-      return instance.post(this.path, {
-        json: postData,
-        ...additionalOptions
-      }).then(async (res) => {
+      const newUrl = this.constructUrl(this.path);
+      const newHeaders = this.addHeaders();
+      return httpClient(newUrl, postData, newHeaders).then(async (res) => {
         jobResponse = await this.processPOSTResponse(res);
         jobResponse.input_tokens && (this.inputTokens += jobResponse.input_tokens);
         jobResponse.output_tokens && (this.outputTokens += jobResponse.output_tokens);
@@ -1045,6 +1053,37 @@ var Model = class {
   }
   get promptConfig() {
     return this.modelConfig.extra.promptConfig;
+  }
+  isAuthTokenAvailable(headers) {
+    if (headers) {
+      const newHeaders = new Headers(headers);
+      const authHeaderExists = (newHeaders?.get("authorization")?.length || 0) > 0;
+      const apiKeyHeaderExists = (newHeaders?.get("x-api-key")?.length || 0) > 0;
+      const authTokenHeaderExists = (newHeaders?.get("x-auth-token")?.length || 0) > 0;
+      return authHeaderExists || apiKeyHeaderExists || authTokenHeaderExists;
+    }
+    return false;
+  }
+  addHeaders(headers) {
+    const newHeaders = new Headers(headers);
+    newHeaders.append("Accept", "application/json, text/event-stream");
+    newHeaders.append("Content-Type", "application/json");
+    const authTokenAvailable = this.isAuthTokenAvailable(newHeaders);
+    if (!authTokenAvailable) {
+      let apiKey = process.env.DE_BACKEND_API_KEY;
+      if (!apiKey) {
+        apiKey = process.env.NEXT_PUBLIC_DE_BACKEND_API_KEY;
+        if (apiKey) {
+          logger.warn("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure this was intended behaviour.");
+        } else {
+          logger.warn("No API keys were found. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token. And the following variables: DE_BACKEND_API_KEY, NEXT_PUBLIC_DE_BACKEND_API_KEY. Ensure this was intended behaviour.");
+        }
+      }
+      if (apiKey) {
+        newHeaders.set("Authorization", `Bearer ${apiKey}`);
+      }
+    }
+    return newHeaders;
   }
 };
 
@@ -1208,7 +1247,7 @@ var Prompter = class {
 
 // src/drama.ts
 var Drama = class _Drama {
-  constructor(companionConfigs, database, worldState, kyInstance, kyOptions, defaultModel, chatModeOverride) {
+  constructor(companionConfigs, database, worldState, defaultModel, defaultSummaryModel, chatModeOverride, httpClient) {
     this.companions = [];
     this.worldState = [];
     this.jobs = [];
@@ -1303,7 +1342,7 @@ var Drama = class _Drama {
     };
     /* INFERENCES */
     this.runJob = async (job) => {
-      const response = await this.model.runJob(job, this.instance, this.additionalOptions);
+      const response = await this.model.runJob(job, this.httpClient);
       response && job.context.addUsage(response);
       logger.debug("runJob", job, "-->", response);
       await this.increaseWorldStateEntry("INPUT_TOKENS", job.context.input_tokens);
@@ -1476,58 +1515,16 @@ var Drama = class _Drama {
     this.chatMode = chatModeOverride === void 0 ? apiEndpoint.includes("chat/completions") : chatModeOverride;
     this.model = new Model(apiEndpoint, defaultModel);
     this.prompter = new Prompter(this.model.promptTemplate);
-    this.instance = kyInstance;
     this.database = database;
-    this.additionalOptions = kyOptions;
     this.companions = companionConfigs.map((c) => new c.class(c, this));
     this.defaultModelConfig = defaultModel || defaultModelConfig;
+    this.defaultSummaryModelConfig = defaultSummaryModel || largeContextModelConfig;
+    this.httpClient = httpClient;
     logger.info("DRAMA ENGINE // INITIATED");
     return this;
   }
-  static isAuthTokenAvailable(headersInit) {
-    if (headersInit) {
-      const headers = new Headers(headersInit);
-      const authHeaderExists = (headers?.get("authorization")?.length || 0) > 0;
-      const apiKeyHeaderExists = (headers?.get("x-api-key")?.length || 0) > 0;
-      const authTokenHeaderExists = (headers?.get("x-auth-token")?.length || 0) > 0;
-      return authHeaderExists || apiKeyHeaderExists || authTokenHeaderExists;
-    }
-    return false;
-  }
-  static checkAdditionalOptions(additionalOptions) {
-    let additionalOptionsWithPrefix = additionalOptions || {};
-    if (additionalOptionsWithPrefix?.prefixUrl === void 0) {
-      additionalOptionsWithPrefix = {
-        prefixUrl: process.env.DE_BASE_URL || process.env.NEXT_PUBLIC_DE_BASE_URL || "",
-        ...additionalOptionsWithPrefix
-      };
-    }
-    const authTokenAvailable = this.isAuthTokenAvailable(additionalOptions?.headers);
-    if (!authTokenAvailable) {
-      let apiKey = process.env.DE_BACKEND_API_KEY;
-      if (!apiKey) {
-        apiKey = process.env.NEXT_PUBLIC_DE_BACKEND_API_KEY;
-        if (apiKey) {
-          logger.warn("API key was found in a publicly exposed variable, `NEXT_PUBLIC_DE_BACKEND_API_KEY`. Ensure this was intended behaviour.");
-        } else {
-          logger.warn("No API keys were found. Checked the following headers: Authorization, X-API-KEY, X-Auth-Token. And the following variables: DE_BACKEND_API_KEY, NEXT_PUBLIC_DE_BACKEND_API_KEY. Ensure this was intended behaviour.");
-        }
-      }
-      additionalOptionsWithPrefix = {
-        ...additionalOptionsWithPrefix,
-        headers: {
-          ...apiKey ? {
-            "Authorization": `Bearer ${apiKey}`
-          } : {},
-          ...additionalOptionsWithPrefix?.headers
-        }
-      };
-    }
-    return additionalOptionsWithPrefix;
-  }
-  static async initialize(defaultSituation, companionConfigs, defaultModel = defaultModelConfig, kyInstance = ky, kyOptions, database = new InMemoryDatabase(), chatModeOverride) {
+  static async initializeEngine(defaultSituation, companionConfigs, database = new InMemoryDatabase(), options) {
     const worldState = await database.world() || [];
-    const newAdditionalOptions = this.checkAdditionalOptions(kyOptions);
     if (!companionConfigs.find((c) => c.kind == "user"))
       companionConfigs = [
         ...companionConfigs,
@@ -1541,7 +1538,15 @@ var Drama = class _Drama {
           kind: "user"
         }
       ];
-    const drama = new _Drama(companionConfigs, database, worldState, kyInstance, newAdditionalOptions, defaultModel, chatModeOverride);
+    const drama = new _Drama(
+      companionConfigs,
+      database,
+      worldState,
+      { ...defaultModelConfig, ...options?.defaultModel },
+      { ...largeContextModelConfig, ...options?.summaryModel },
+      options?.chatModeOverride,
+      options?.httpClient
+    );
     drama.companions.forEach((companion) => {
       const interactions = worldState.find((w) => w.key == "COMPANION_INTERACTIONS_" + companion.id.toUpperCase());
       if (interactions && typeof interactions.value == "number")
@@ -1569,6 +1574,14 @@ var Drama = class _Drama {
       }
     });
     return drama;
+  }
+  static async initialize(defaultSituation, companionConfigs, defaultModel = defaultModelConfig, database = new InMemoryDatabase(), chatModeOverride, httpClient) {
+    return this.initializeEngine(defaultSituation, companionConfigs, database, {
+      defaultModel,
+      summaryModel: largeContextModelConfig,
+      chatModeOverride,
+      httpClient
+    });
   }
 };
 export {

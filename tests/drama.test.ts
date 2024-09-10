@@ -1,13 +1,12 @@
 import { expect, test } from '@jest/globals';
 import { ChatMessage, Companion, Context, Drama } from '../src';
-import { InMemoryDatabase } from '../src/db/in-memory-database';
 import { testCompanionConfigs } from './config/companions';
 import { partialModelConfig, streamingModelConfig, testModelConfig } from './config/models';
 
 const userTestPrompt = "Hey Anders, if our startups target is a small niche market, how do we expand and still keep our core values ?";
 
 test('API key is available', () => {
-	expect(process.env.DE_BACKEND_API_KEY).toBeDefined();
+	expect(process.env.DE_BACKEND_API_KEY ).toBeDefined();
 });
 
 test('Companion ID generator', () => {
@@ -113,7 +112,7 @@ test('Tested streaming correctly', async () => {
 }, 15000);
 
 test('Tested partial model configuration', async () => {
-	const drama = await Drama.initializeEngine("co-working", [testCompanionConfigs[0]], undefined, undefined, {
+	const drama = await Drama.initializeEngine("co-working", [testCompanionConfigs[0]], undefined, {
 		defaultModel: partialModelConfig
 	});
 
