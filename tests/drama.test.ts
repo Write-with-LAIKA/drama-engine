@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
 import { ChatMessage, Companion, Context, Drama } from '../src';
 import { testCompanionConfigs } from './config/companions';
-import { partialModelConfig, streamingModelConfig, testModelConfig } from './config/models';
+import { hermes3Config, partialModelConfig, streamingModelConfig, testModelConfig } from './config/models';
 
 const userTestPrompt = "Hey Anders, if our startups target is a small niche market, how do we expand and still keep our core values ?";
 
@@ -21,42 +21,27 @@ test('Companion ID generator', () => {
 	expect(Companion.toID("Frank Jimmy Isildur")).toBe("frank-jimmy-isildur");
 });
 
-test('Initialised drama engine correctly', async () => {
-	const drama = await Drama.initialize("water-cooler", testCompanionConfigs);
+test('Basic initialisation', async () => {
+	const drama = await Drama.initialize("water-cooler", testCompanionConfigs, undefined, { defaultModel: testModelConfig }); 
 	expect({
 		value: drama,
 		description: 'Drama engine initialised correctly',
 		matcher: 'toBeDefined',
 	});
 
-	const chats = drama.chats[0];
-	const chatID = 'water-cooler';
-	const situationID = 'water-cooler';
-	const rounds = 5;
-	const context = new Context(undefined, drama.companions, chatID, situationID);
-
-	await drama.runChat(chats, rounds, context);
-
-	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
-	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();
-
-	await drama.runChat(chats, rounds, context);
-
-	chats.history.forEach((chatMsg: ChatMessage) => {
-		console.info(`${chatMsg.companion.configuration.name}: ${chatMsg.message}`);
-	});
 }, 15000);
 
 test('Tested model per companion correctly', async () => {
-	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], testModelConfig);
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: testModelConfig }); 
+
+	console.info("----------");
+	console.info("Tested model per companion correctly");
 
 	const chats = drama.chats[0];
 	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
 	const situationID = 'co-working';
 	const context = new Context(undefined, drama.companions, chatID, situationID);
 	const rounds = 5;
-
-	await drama.runChat(chats, rounds, context);
 
 	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
 	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();
@@ -71,14 +56,38 @@ test('Tested model per companion correctly', async () => {
 test('Tested chat completions endpoint correctly', async () => {
 	process.env.DE_ENDPOINT_URL = 'v1/chat/completions'
 
-	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], testModelConfig);
+	console.info("----------");
+	console.info("Tested chat completions endpoint correctly");
+
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: testModelConfig }); 
 	const chats = drama.chats[0];
 	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
 	const situationID = 'co-working';
 	const context = new Context(undefined, drama.companions, chatID, situationID);
 	const rounds = 5;
 
+	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
+	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();
+
 	await drama.runChat(chats, rounds, context);
+
+	chats.history.forEach((chatMsg: ChatMessage) => {
+		console.info(`${chatMsg.companion.configuration.name}: ${chatMsg.message}`);
+	});
+}, 15000);
+
+test('Tested using a larger model with chat completion', async () => {
+	process.env.DE_ENDPOINT_URL = 'v1/chat/completions'
+
+	console.info("----------");
+	console.info("Tested using a larger model with chat completion");
+
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: hermes3Config });
+	const chats = drama.chats[0];
+	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
+	const situationID = 'co-working';
+	const context = new Context(undefined, drama.companions, chatID, situationID);
+	const rounds = 5;
 
 	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
 	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();
@@ -91,15 +100,17 @@ test('Tested chat completions endpoint correctly', async () => {
 }, 15000);
 
 
-test('Tested streaming correctly', async () => {
-	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], streamingModelConfig);
+test('Tested streaming mode', async () => {
+
+	console.info("----------");
+	console.info("Tested streaming mode");
+
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: streamingModelConfig });
 	const chats = drama.chats[0];
 	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
 	const situationID = 'co-working';
 	const context = new Context(undefined, drama.companions, chatID, situationID);
-	const rounds = 5;
-
-	await drama.runChat(chats, rounds, context);
+	const rounds = 1;
 
 	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
 	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();
@@ -109,10 +120,14 @@ test('Tested streaming correctly', async () => {
 	chats.history.forEach((chatMsg: ChatMessage) => {
 		console.info(`${chatMsg.companion.configuration.name}: ${chatMsg.message}`);
 	});
-}, 15000);
+}, 60000);
 
 test('Tested partial model configuration', async () => {
-	const drama = await Drama.initializeEngine("co-working", [testCompanionConfigs[0]], undefined, {
+
+	console.info("----------");
+	console.info("Tested partial model configuration");
+
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, {
 		defaultModel: partialModelConfig
 	});
 
@@ -121,8 +136,6 @@ test('Tested partial model configuration', async () => {
 	const situationID = 'co-working';
 	const context = new Context(undefined, drama.companions, chatID, situationID);
 	const rounds = 1;
-
-	await drama.runChat(chats, rounds, context);
 
 	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
 	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();

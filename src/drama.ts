@@ -55,7 +55,7 @@ export class Drama {
 		return this;
 	}
 
-	static async initializeEngine(
+	static async initialize(
 		defaultSituation: string,
 		companionConfigs: CompanionConfig[],
 		database: Database = new InMemoryDatabase(),
@@ -128,21 +128,21 @@ export class Drama {
 
 	}
 
-	static async initialize(
-		defaultSituation: string,
-		companionConfigs: CompanionConfig[],
-		defaultModel: ModelConfig = defaultModelConfig,
-		database: Database = new InMemoryDatabase(),
-		chatModeOverride?: boolean,
-		httpClient?: any,
-	) {
-		return this.initializeEngine(defaultSituation, companionConfigs, database, {
-			defaultModel,
-			summaryModel: largeContextModelConfig,
-			chatModeOverride,
-			httpClient
-		})
-	}
+	// static async initialize(
+	// 	defaultSituation: string,
+	// 	companionConfigs: CompanionConfig[],
+	// 	defaultModel: ModelConfig = defaultModelConfig,
+	// 	database: Database = new InMemoryDatabase(),
+	// 	chatModeOverride?: boolean,
+	// 	httpClient?: any,
+	// ) {
+	// 	return this.initializeEngine(defaultSituation, companionConfigs, database, {
+	// 		defaultModel,
+	// 		summaryModel: largeContextModelConfig,
+	// 		chatModeOverride,
+	// 		httpClient
+	// 	})
+	// }
 
 	reset = async () => {
 		logger.info("DRAMA ENGINE // RESET");
