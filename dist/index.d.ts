@@ -138,13 +138,12 @@ declare class Drama {
     jobs: Job[];
     chats: Chat[];
     private constructor();
-    static initializeEngine(defaultSituation: string, companionConfigs: CompanionConfig[], database?: Database, options?: {
+    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], database?: Database, options?: {
         defaultModel?: Partial<ModelConfig>;
         summaryModel?: Partial<ModelConfig>;
         chatModeOverride?: boolean;
         httpClient?: any;
     }): Promise<Drama>;
-    static initialize(defaultSituation: string, companionConfigs: CompanionConfig[], defaultModel?: ModelConfig, database?: Database, chatModeOverride?: boolean, httpClient?: any): Promise<Drama>;
     reset: () => Promise<void>;
     increaseWorldStateEntry: (key: string, value: number) => Promise<void>;
     setWorldStateEntry: (key: string, value: StateTypes) => Promise<void>;

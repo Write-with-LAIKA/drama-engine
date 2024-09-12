@@ -1252,6 +1252,21 @@ var Drama = class _Drama {
     this.worldState = [];
     this.jobs = [];
     this.chats = [];
+    // static async initialize(
+    // 	defaultSituation: string,
+    // 	companionConfigs: CompanionConfig[],
+    // 	defaultModel: ModelConfig = defaultModelConfig,
+    // 	database: Database = new InMemoryDatabase(),
+    // 	chatModeOverride?: boolean,
+    // 	httpClient?: any,
+    // ) {
+    // 	return this.initializeEngine(defaultSituation, companionConfigs, database, {
+    // 		defaultModel,
+    // 		summaryModel: largeContextModelConfig,
+    // 		chatModeOverride,
+    // 		httpClient
+    // 	})
+    // }
     this.reset = async () => {
       logger.info("DRAMA ENGINE // RESET");
       this.jobs = [];
@@ -1523,7 +1538,7 @@ var Drama = class _Drama {
     logger.info("DRAMA ENGINE // INITIATED");
     return this;
   }
-  static async initializeEngine(defaultSituation, companionConfigs, database = new InMemoryDatabase(), options) {
+  static async initialize(defaultSituation, companionConfigs, database = new InMemoryDatabase(), options) {
     const worldState = await database.world() || [];
     if (!companionConfigs.find((c) => c.kind == "user"))
       companionConfigs = [
@@ -1574,14 +1589,6 @@ var Drama = class _Drama {
       }
     });
     return drama;
-  }
-  static async initialize(defaultSituation, companionConfigs, defaultModel = defaultModelConfig, database = new InMemoryDatabase(), chatModeOverride, httpClient) {
-    return this.initializeEngine(defaultSituation, companionConfigs, database, {
-      defaultModel,
-      summaryModel: largeContextModelConfig,
-      chatModeOverride,
-      httpClient
-    });
   }
 };
 export {
