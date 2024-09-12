@@ -100,6 +100,12 @@ ${username}: A guest user in the chatroom.
 		if (speakers.length == 1)
 			return [speakers[0]];
 
+		// if the last message came after a question, we return the one who asked the question
+		if (chat.history.length > 1) {
+			if (chat.history[chat.history.length - 2].message.includes("?"))
+				return [chat.history[chat.history.length - 2].companion];
+		}
+
 		// Check if any person was mentioned. This overrides everything.
 		if (chat.history.length > 0) {
 			const mentionedSpeakers = chat.mentionedCompanions(chat.history[chat.history.length - 1].message).filter(m => speakers.includes(m));

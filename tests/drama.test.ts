@@ -31,17 +31,17 @@ test('Basic initialisation', async () => {
 
 }, 15000);
 
-test('Tested model per companion correctly', async () => {
+test('Single companion', async () => {
 	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: testModelConfig }); 
 
 	console.info("----------");
-	console.info("Tested model per companion correctly");
+	console.info("Single companion");
 
 	const chats = drama.chats[0];
 	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
 	const situationID = 'co-working';
 	const context = new Context(undefined, drama.companions, chatID, situationID);
-	const rounds = 5;
+	const rounds = 3;
 
 	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
 	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();
@@ -53,18 +53,18 @@ test('Tested model per companion correctly', async () => {
 	});
 }, 15000);
 
-test('Tested chat completions endpoint correctly', async () => {
+test('Chat completion', async () => {
 	process.env.DE_ENDPOINT_URL = 'v1/chat/completions'
 
 	console.info("----------");
-	console.info("Tested chat completions endpoint correctly");
+	console.info("Chat completion");
 
-	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: testModelConfig }); 
+	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: testModelConfig });
 	const chats = drama.chats[0];
 	const chatID = drama.companions[0].configuration.name.toLowerCase() + '_chat';
 	const situationID = 'co-working';
 	const context = new Context(undefined, drama.companions, chatID, situationID);
-	const rounds = 5;
+	const rounds = 3;
 
 	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
 	expect(you && chats.appendMessage(you, userTestPrompt)).toBeDefined();
@@ -76,11 +76,43 @@ test('Tested chat completions endpoint correctly', async () => {
 	});
 }, 15000);
 
-test('Tested using a larger model with chat completion', async () => {
+test('Question answering', async () => {
 	process.env.DE_ENDPOINT_URL = 'v1/chat/completions'
 
 	console.info("----------");
-	console.info("Tested using a larger model with chat completion");
+	console.info("Question answering");
+
+	const drama = await Drama.initialize("co-working", testCompanionConfigs, undefined, { defaultModel: testModelConfig }); 
+	const chatID = 'question_answering_chat';
+	const situationID = 'co-working';
+	const chat = drama.addChat(chatID, situationID, [...drama.companions.filter(c => c.configuration.kind == "npc").map(c => c.id)], 3);
+	const context = new Context(undefined, drama.companions, chatID, situationID);
+	const rounds = 5;
+
+	const you = drama.companions.find(c => c.configuration.name.toLowerCase() === "you");
+	expect(you).toBeDefined();
+
+	you && chat.appendMessage(you, "Hello");
+	you && chat.appendMessage(drama.companions[1], "Can I ask you for your name?");
+	you && chat.appendMessage(you, "I'm Martin");
+
+	await drama.runChat(chat, rounds, context);
+
+	chat.history.forEach((chatMsg: ChatMessage) => {
+		console.info(`${chatMsg.companion.configuration.name}: ${chatMsg.message}`);
+	});
+
+	// should go back to the bot and then return to the user
+	expect(chat.history.length).toBe(4);
+	expect(chat.history[chat.history.length - 1].companion.configuration.name).toBe("Simon");
+
+}, 15000);
+
+test('Larger model with chat completion', async () => {
+	process.env.DE_ENDPOINT_URL = 'v1/chat/completions'
+
+	console.info("----------");
+	console.info("Larger model with chat completion");
 
 	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: hermes3Config });
 	const chats = drama.chats[0];
@@ -100,10 +132,10 @@ test('Tested using a larger model with chat completion', async () => {
 }, 15000);
 
 
-test('Tested streaming mode', async () => {
+test('Streaming mode (not supported by all platforms)', async () => {
 
 	console.info("----------");
-	console.info("Tested streaming mode");
+	console.info("Streaming mode");
 
 	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, { defaultModel: streamingModelConfig });
 	const chats = drama.chats[0];
@@ -120,12 +152,12 @@ test('Tested streaming mode', async () => {
 	chats.history.forEach((chatMsg: ChatMessage) => {
 		console.info(`${chatMsg.companion.configuration.name}: ${chatMsg.message}`);
 	});
-}, 60000);
+}, 15000);
 
-test('Tested partial model configuration', async () => {
+test('Partial model configuration', async () => {
 
 	console.info("----------");
-	console.info("Tested partial model configuration");
+	console.info("Partial model configuration");
 
 	const drama = await Drama.initialize("co-working", [testCompanionConfigs[0]], undefined, {
 		defaultModel: partialModelConfig

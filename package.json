@@ -1,6 +1,6 @@
 {
   "name": "@write-with-laika/drama-engine",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "A framework for narrative agents",
   "main": "dist/index.ts",
   "module": "dist/index.mjs",
