@@ -162,7 +162,7 @@ export class Prompter {
 		const moodData = companion.mood.prompt;
 
 		// leave out shell companions because they are never a part of the chat history
-		const otherCompanions = context.companions.filter(c => c.configuration.kind != "shell" && c.id != companion.id).map(c => c.configuration.description);
+		const otherCompanions = context.companions.filter(c => c.configuration.kind != "shell" && c.id != companion.id).map(c => c.configuration.name + ": " + c.configuration.description);
 		const companionList = otherCompanions && otherCompanions.join("\n");
 
 		// if there's an action we exclude knowledge, companions & situation
