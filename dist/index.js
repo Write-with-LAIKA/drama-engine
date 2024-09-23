@@ -598,6 +598,10 @@ ${username}: A guest user in the chatroom.
       logger.debug("allowedSpeakers: ", speakers);
       if (speakers.length == 1)
         return [speakers[0]];
+      if (chat.history.length > 1) {
+        if (chat.history[chat.history.length - 2].message.includes("?"))
+          return [chat.history[chat.history.length - 2].companion];
+      }
       if (chat.history.length > 0) {
         const mentionedSpeakers = chat.mentionedCompanions(chat.history[chat.history.length - 1].message).filter((m) => speakers.includes(m));
         if (mentionedSpeakers.length > 0) {
@@ -1240,7 +1244,7 @@ var Prompter = class {
       logger.debug("context", { ...context });
       logger.debug("input data", context.query()?.substring(0, 250));
       const moodData = companion.mood.prompt;
-      const otherCompanions = context.companions.filter((c) => c.configuration.kind != "shell" && c.id != companion.id).map((c) => c.configuration.description);
+      const otherCompanions = context.companions.filter((c) => c.configuration.kind != "shell" && c.id != companion.id).map((c) => c.configuration.name + ": " + c.configuration.description);
       const companionList = otherCompanions && otherCompanions.join("\n");
       const isAction = context.action != void 0;
       const knowledgeData = isAction ? void 0 : this.decorate("knowledge", tags.join("\n"), allDecorators);
