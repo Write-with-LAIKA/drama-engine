@@ -10,7 +10,7 @@ Get the source code in the [Drama Engine git repository](https://github.com/Writ
 
 Test the Drama Engine in action [in the Writers Room](http://writers-room.com).
 
-One-click deployable [Vercel template with source code](https://github.com/Write-with-LAIKA/drama-engine-template).
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub%2Ecom%2FWrite%2Dwith%2DLAIKA%2Fdrama%2Dengine%2Dtemplate)
 
 ### Core features
 
