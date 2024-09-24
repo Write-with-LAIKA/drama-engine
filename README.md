@@ -10,6 +10,8 @@ Get the source code in the [Drama Engine git repository](https://github.com/Writ
 
 Test the Drama Engine in action [in the Writers Room](http://writers-room.com).
 
+One-click [Vercel Template](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fhello-world) with [source code](https://github.com/Write-with-LAIKA/drama-engine-template).
+
 ### Core features
 
 - *Multi-agent workflows with delegation*: The conversation between several agents is orchestrated via a moderator. Agents can delegate more complex tasks to chains of deputies.
